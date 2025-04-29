@@ -13,14 +13,17 @@ REQUIREMENTS
 - The following Python packages:
     - flask
     - waitress
+    - gunicorn (for deployment)
+    - blinker, jinja2, requests, etc. (see requirements.txt)
 
-To install the required packages, open a terminal/command prompt in the project folder and run:
-    pip install flask waitress
+To install all required packages, run:
+    pip install -r requirements.txt
 
 ========================================
 FILES & FOLDERS
 ----------------------------------------
 - CalorieApp.py         : Main Flask web application
+- fix_profiles.py       : Script to validate/fix profiles.json and generate magic login links
 - Start.py              : Script to safely start the server
 - Stop.py               : Script to safely stop the server
 - Restart.py            : Script to safely restart the server
@@ -49,7 +52,6 @@ HOW TO USE
 2. **Stopping the Server**
    - In the terminal/command prompt, run:
         python Stop.py
-   - This will safely stop the server.
 
 3. **Restarting the Server**
    - To apply code changes or refresh the server, run:
@@ -69,6 +71,26 @@ HOW TO USE
    - After deploy, use your magic links for seamless login.
 
 ========================================
+FIXING PROFILES & GENERATING MAGIC LINKS
+----------------------------------------
+
+If you encounter issues with `profiles.json` (missing fields, errors, or need to generate magic login links), use the `fix_profiles.py` script:
+
+- **To validate and fix profiles.json:**
+    python fix_profiles.py
+
+- **To run in dry-run mode (see what would change, but don’t save):**
+    python fix_profiles.py --dry-run
+
+- **To print magic login links for all users:**
+    python fix_profiles.py --print-links
+
+- **To print magic links with a custom base URL (e.g., after deployment):**
+    python fix_profiles.py --print-links --base-url=https://your-app-url.onrender.com
+
+This will output a magic login link for each user profile. Share the appropriate link with each user for instant access.
+
+========================================
 FEATURES
 ----------------------------------------
 - Multiple user profiles
@@ -85,7 +107,8 @@ TROUBLESHOOTING
 - If you see "Server already running..." when starting, use Stop.py first.
 - If you change the code, use Restart.py to safely reload the server.
 - If you get errors about missing packages, run:
-      pip install flask waitress
+      pip install -r requirements.txt
+- If you have issues with user profiles or need magic login links, use fix_profiles.py as described above.
 
 ========================================
 PRODUCTION NOTES
