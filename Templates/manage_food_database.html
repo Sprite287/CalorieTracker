@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Food Database{% endblock %}
+
+{% block content %}
+<h1>Manage Food Database</h1>
+
+<!-- Display error and success messages -->
+{% if error_message %}
+    <p class="error">{{ error_message }}</p>
+{% endif %}
+{% if success_message %}
+    <p class="success">{{ success_message }}</p>
+{% endif %}
+
+<div style="display: flex; flex-wrap: wrap; gap: 2em; justify-content: center;">
+    <!-- Reset Food Calories Section -->
+    <form method="POST" action="{{ url_for('reset_food_calories') }}" style="min-width: 280px; flex: 1;">
+        <h3>Reset Food Calories</h3>
+        <label for="reset_food_name">Select Food:</label>
+        <select id="reset_food_name" name="food_name" required>
+            <option value="" disabled selected>-- Select Food --</option>
+            {% if food_database %}
+                {% for food_name in food_database %}
+                    <option value="{{ food_name }}">{{ food_name }}</option>
+                {% endfor %}
+            {% else %}
+                <option disabled>No foods in database</option>
+            {% endif %}
+        </select>
+        <label for="calories">New Calorie Value:</label>
+        <input type="number" id="calories" name="calories" placeholder="Enter new calorie value" min="1" required>
+        <button type="submit">Reset Calories</button>
+    </form>
+
+    <!-- Delete Food Section -->
+    <form method="POST" action="{{ url_for('delete_food_from_database') }}" style="min-width: 280px; flex: 1;" onsubmit="return confirm('Are you sure you want to delete this food item? This cannot be undone.');">
+        <h3>Delete Food</h3>
+        <label for="delete_food_name">Select Food:</label>
+        <select id="delete_food_name" name="food_name" required>
+            <option value="" disabled selected>-- Select Food --</option>
+            {% if food_database %}
+                {% for food_name in food_database %}
+                    <option value="{{ food_name }}">{{ food_name }}</option>
+                {% endfor %}
+            {% else %}
+                <option disabled>No foods in database</option>
+            {% endif %}
+        </select>
+        <button type="submit" class="delete-button">Delete Food</button>
+    </form>
+</div>
+
+<div style="text-align:center; margin-top:2em;">
+    <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+</div>
+{% endblock %}

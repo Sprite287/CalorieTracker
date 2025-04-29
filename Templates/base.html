@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Calorie Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Apply dark mode immediately to prevent white flash -->
+    <script>
+        // Check localStorage and apply dark mode before rendering
+        if (localStorage.getItem("darkMode") === "true") {
+            document.documentElement.classList.add("dark-mode");
+        }
+    </script>
+
+    <style>
+        /* Inline styles for the dark mode toggle button */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            z-index: 1000; /* Ensure it appears above other elements */
+        }
+
+        .dark-mode-toggle:hover {
+            background-color: #45a049;
+        }
+
+        .dark-mode-toggle span {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dark Mode Toggle Button -->
+    <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle Dark Mode">
+        <span id="darkModeIcon">🌙</span>
+    </button>
+
+    <!-- Main Content Block -->
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Dark Mode Toggle Script -->
+    <script>
+        // Handles dark mode toggle and icon update
+        document.addEventListener("DOMContentLoaded", () => {
+            const darkModeToggle = document.getElementById("darkModeToggle");
+            const darkModeIcon = document.getElementById("darkModeIcon");
+            const isDarkMode = localStorage.getItem("darkMode") === "true";
+
+            // Apply dark mode if saved in localStorage
+            if (isDarkMode) {
+                document.body.classList.add("dark-mode");
+                darkModeIcon.textContent = "☀️"; // Set icon to sun
+            }
+
+            // Toggle dark mode on button click
+            darkModeToggle.addEventListener("click", () => {
+                document.body.classList.toggle("dark-mode");
+                const isDarkMode = document.body.classList.contains("dark-mode");
+                localStorage.setItem("darkMode", isDarkMode); // Save preference
+
+                // Update the icon
+                darkModeIcon.textContent = isDarkMode ? "☀️" : "🌙";
+            });
+        });
+    </script>
+</body>
+</html>

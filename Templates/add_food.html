@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Add Food{% endblock %}
+
+{% block content %}
+<h1>Add Food</h1>
+    
+<!-- Display error messages if any -->
+{% if error_message %}
+<p class="error">{{ error_message }}</p>
+{% endif %}
+    
+<!-- Food Entry Form -->
+<form method="POST" action="{{ url_for('add_food') }}" class="food-form">
+    <!-- Existing Food Dropdown -->
+    <label for="food_name">Select Food:</label>
+    <select name="food_name" id="food_name">
+        <option value="">--Choose--</option>
+        {% for name, calories in food_database %}
+            <option value="{{ name }}">{{ name }} ({{ calories }} cal)</option>
+        {% endfor %}
+    </select>
+    <span>or</span>
+    <!-- New Food Input -->
+    <input type="text" name="food_name_input" placeholder="New food name">
+    <input type="number" name="calories" placeholder="Calories" min="1">
+    <label for="meal_type">Meal Type:</label>
+    <select name="meal_type" id="meal_type" required>
+        {% for meal in meal_types %}
+            <option value="{{ meal }}">{{ meal.capitalize() }}</option>
+        {% endfor %}
+    </select>
+    <label for="quantity">Quantity:</label>
+    <input type="number" name="quantity" id="quantity" value="1" min="1">
+    <button type="submit" class="add-food-btn">Add Food</button>
+</form>
+<a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+{% endblock %}

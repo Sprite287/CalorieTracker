@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<h1>Welcome, {{ profile_name }}!</h1>
+<p>Date: {{ today }}</p>
+<p>Daily Calorie Goal: <strong>{{ daily_calories }}</strong></p>
+<p>Total Calories Consumed: <strong>{{ total_calories }}</strong></p>
+<p>Calories Left: <span style="color: green;">{{ calories_left if calories_left > 0 else 0 }}</span></p>
+{% if calories_over > 0 %}
+    <p style="color: red;">You are over your goal by {{ calories_over }} calories.</p>
+{% endif %}
+
+<!-- Progress Bar -->
+{% macro progress_bar_color(percent) %}
+    {%- set p = percent|float -%}
+    {%- if p <= 100 -%}
+        /* Green to Yellow */
+        background-color: rgb({{ (255 * (p / 100))|int }}, 207, 80);
+    {%- else -%}
+        /* Red */
+        background-color: rgb(255, 80, 80);
+    {%- endif -%}
+{% endmacro %}
+
+<div class="progress-bar-wrapper">
+    {% set percent = (total_calories / daily_calories * 100) if daily_calories else 0 %}
+    <div class="progress-bar"
+         style="width: {{ percent }}%; {{ progress_bar_color(percent) }}">
+        {{ percent | round(1) }}%
+    </div>
+</div>
+
+<!-- Weight Goal and Change -->
+{% if weight_goal %}
+    <p>Weight Goal: {{ weight_goal }}</p>
+{% endif %}
+{% if current_weight %}
+    <p>Current Weight: {{ current_weight }}
+        {% if arrow %}
+            <span style="color: {{ arrow_color }};">{{ arrow|safe }}</span>
+            {% if weight_change %}
+                ({{ weight_change }})
+            {% endif %}
+        {% endif %}
+    </p>
+{% endif %}
+
+<!-- Navigation Links -->
+<div class="navigation-buttons-vertical">
+    <a href="{{ url_for('add_food') }}" class="nav-button">Add Food</a>
+    <a href="{{ url_for('summary') }}" class="nav-button">Summary</a>
+    <a href="{{ url_for('set_goal') }}" class="nav-button">Set Goal</a>
+    <a href="{{ url_for('weekly_average') }}" class="nav-button">Weekly Average</a>
+    <a href="{{ url_for('calorie_graph') }}" class="nav-button">Calorie Graph</a>
+    <a href="{{ url_for('weight_history') }}" class="nav-button">Weight History</a>
+    <a href="{{ url_for('history') }}" class="nav-button">History</a>
+    <a href="{{ url_for('manage_food_database') }}" class="nav-button">Manage Food Database</a>
+</div>
+
+<a href="{{ url_for('select_profile') }}" class="back-button" style="margin-top: 18px;">Return to Profile Select</a>
+
+<!-- Log Weight Form -->
+<form method="POST" action="{{ url_for('log_weight') }}" class="weight-form">
+    <label for="weight">Log Weight:</label>
+    <input type="number" name="weight" id="weight" step="0.1" min="1" required>
+    <button type="submit">Log</button>
+</form>
+{% endblock %}

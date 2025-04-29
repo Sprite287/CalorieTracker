@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Summary{% endblock %}
+
+{% block content %}
+<!-- Daily Summary Section -->
+<h1>Summary for {{ today }}</h1>
+<!-- Meals Table -->
+<div class="summary-table-responsive">
+  <table class="summary-table">
+      <thead>
+          <tr>
+              <th class="meal-col">Meal</th>
+              <th>Food</th>
+              <th>Quantity</th>
+              <th>Calories</th>
+              <th>Action</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for meal, foods in meals.items() %}
+              {% for food in foods %}
+                  <tr>
+                      <td class="meal-col">{{ meal.capitalize() }}</td>
+                      <td>{{ food.name }}</td>
+                      <td>{{ food.quantity or 1 }}</td>
+                      <td>{{ food.calories }}</td>
+                      <td>
+                          <form method="POST" action="{{ url_for('delete_food_entry') }}" class="inline-form">
+                              <input type="hidden" name="food_id" value="{{ food.id }}">
+                              <input type="hidden" name="meal_type" value="{{ meal }}">
+                              <button type="submit" class="delete-btn small-btn">Delete</button>
+                          </form>
+                          <form method="POST" action="{{ url_for('reset_daily_calories') }}" class="inline-form">
+                              <input type="hidden" name="food_id" value="{{ food.id }}">
+                              <input type="hidden" name="meal_type" value="{{ meal }}">
+                              <input type="number" name="new_calories" min="1" placeholder="Set" class="small-input" required>
+                              <button type="submit" class="reset-btn small-btn">Reset</button>
+                          </form>
+                      </td>
+                  </tr>
+              {% endfor %}
+          {% endfor %}
+      </tbody>
+  </table>
+</div>
+<p style="text-align:right; font-size:1.2em;"><strong>Total Calories:</strong> {{ total_calories }}</p>
+<a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+{% endblock %}
