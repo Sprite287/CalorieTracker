@@ -1,15 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, send_file
 import datetime
 import json
 import os
 import uuid  # For generating unique IDs
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
+# ^ Loads .env for local secrets. On Render, secrets come from Render's Environment tab, not .env.
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")  # Use env var for production
+app.secret_key = os.environ.get("SECRET_KEY", "fallback-local-dev-key")  # Use env var for Flask secret
+ADMIN_BACKUP_KEY = os.environ.get("ADMIN_BACKUP_KEY", "fallback")  # Use env var for admin backup key
 
 # File paths
 profiles_file = "profiles.json"
@@ -799,6 +804,16 @@ def magic_login():
             return resp
     flash("Invalid or expired magic link.", "error")
     return redirect(url_for("select_profile"))
+
+@app.route("/download_profiles")
+def download_profiles():
+    # Secure with a token in the URL
+    token = request.args.get("token")
+    expected_token = os.environ.get("SYNC_TOKEN", "profilebackup")  # Set this in Render env vars!
+    if token != expected_token:
+        return "Unauthorized", 403
+    # Send the profiles.json file as a download
+    return send_file(profiles_file, as_attachment=True)
 
 @app.after_request
 def save_data_after_request(response):

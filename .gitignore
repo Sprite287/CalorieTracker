@@ -1,7 +1,10 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# .env file for local secrets
 .env
+
 *.sqlite3
 instance/
 *.log
