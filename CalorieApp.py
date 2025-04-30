@@ -476,7 +476,7 @@ def reset_food_calories():
                     food["calories"] = 0  # Update the calorie count in the daily log
     
     flash(f"Calorie count for '{food_name}' has been reset to 0.", "success")
-    return redirect(url_for("summary"))
+    return redirect(url_for("manage_food_database"))
 
 @app.route("/delete_food_from_database", methods=["POST"])
 def delete_food_from_database():
