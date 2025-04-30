@@ -23,15 +23,13 @@ To install all required packages, run:
 FILES & FOLDERS
 ----------------------------------------
 - CalorieApp.py         : Main Flask web application
-- fix_profiles.py       : Script to validate/fix profiles.json and generate magic login links
+- fix_profiles.py       : (Legacy) Script for old JSON profile management
 - Start.py              : Script to safely start the server
 - Stop.py               : Script to safely stop the server
 - Restart.py            : Script to safely restart the server
 - Templates/            : HTML templates for the web pages
 - static/css/           : CSS stylesheets
-- profiles.json         : Stores user profiles and their data
-- food_database.json    : Stores food items and their calories
-- weekly_log.json       : Stores weekly logs (if used)
+- calorie_tracker.db    : SQLite database for all user, food, and log data
 - ReadMe.txt            : This help file
 - requirements.txt      : Lists required Python packages
 - Procfile              : Specifies commands for deployment
@@ -66,29 +64,9 @@ HOW TO USE
    - Create a new Web Service on Render and connect your repo.
    - Set build command: pip install -r requirements.txt
    - Set start command: gunicorn CalorieApp:app
-   - (Recommended) Add a disk for persistent storage and set PROFILES_PATH=/data/profiles.json
+   - (Recommended) Add a disk for persistent storage to persist calorie_tracker.db
    - Set SECRET_KEY in environment variables for Flask session security.
-   - After deploy, use your magic links for seamless login.
-
-========================================
-FIXING PROFILES & GENERATING MAGIC LINKS
-----------------------------------------
-
-If you encounter issues with `profiles.json` (missing fields, errors, or need to generate magic login links), use the `fix_profiles.py` script:
-
-- **To validate and fix profiles.json:**
-    python fix_profiles.py
-
-- **To run in dry-run mode (see what would change, but don’t save):**
-    python fix_profiles.py --dry-run
-
-- **To print magic login links for all users:**
-    python fix_profiles.py --print-links
-
-- **To print magic links with a custom base URL (e.g., after deployment):**
-    python fix_profiles.py --print-links --base-url=https://your-app-url.onrender.com
-
-This will output a magic login link for each user profile. Share the appropriate link with each user for instant access.
+   - After deploy, use your login page to access your account.
 
 ========================================
 FEATURES
@@ -108,7 +86,7 @@ TROUBLESHOOTING
 - If you change the code, use Restart.py to safely reload the server.
 - If you get errors about missing packages, run:
       pip install -r requirements.txt
-- If you have issues with user profiles or need magic login links, use fix_profiles.py as described above.
+- If you have issues with user profiles or need magic login links, use fix_profiles.py (legacy, for old JSON data only).
 
 ========================================
 PRODUCTION NOTES
