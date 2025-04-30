@@ -5,45 +5,99 @@
 {% block content %}
 <!-- Daily Summary Section -->
 <h1>Summary for {{ today }}</h1>
-<!-- Meals Table -->
-<div class="summary-table-responsive">
-  <table class="summary-table">
-      <thead>
-          <tr>
-              <th class="meal-col">Meal</th>
-              <th>Food</th>
-              <th>Quantity</th>
-              <th>Calories</th>
-              <th>Action</th>
-          </tr>
-      </thead>
-      <tbody>
-          {% for meal, foods in meals.items() %}
-              {% for food in foods %}
-                  <tr>
-                      <td class="meal-col">{{ meal.capitalize() }}</td>
-                      <td>{{ food.name }}</td>
-                      <td>{{ food.quantity or 1 }}</td>
-                      <td>{{ food.calories }}</td>
-                      <td>
-                          <form method="POST" action="{{ url_for('delete_food_entry') }}" class="inline-form">
-                              <input type="hidden" name="food_id" value="{{ food.id }}">
-                              <input type="hidden" name="meal_type" value="{{ meal }}">
-                              <button type="submit" class="delete-btn small-btn">Delete</button>
-                          </form>
-                          <form method="POST" action="{{ url_for('reset_daily_calories') }}" class="inline-form">
-                              <input type="hidden" name="food_id" value="{{ food.id }}">
-                              <input type="hidden" name="meal_type" value="{{ meal }}">
-                              <input type="number" name="new_calories" min="1" placeholder="Set" class="small-input" required>
-                              <button type="submit" class="reset-btn small-btn">Reset</button>
-                          </form>
-                      </td>
-                  </tr>
-              {% endfor %}
-          {% endfor %}
-      </tbody>
-  </table>
+<!-- Meals Table (Desktop/Tablet) -->
+<div class="summary-table-wrapper">
+  <div class="summary-table-responsive">
+    <table class="summary-table">
+        <thead>
+            <tr>
+                <th class="meal-col">Meal</th>
+                <th>Food</th>
+                <th>Quantity</th>
+                <th>Calories</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set meal_order = ["breakfast", "lunch", "dinner", "snack"] %}
+            {% for meal in meal_order %}
+                {% if meals.get(meal) %}
+                    {% for food in meals[meal] %}
+                        <tr>
+                            <td class="meal-col">{{ meal.capitalize() }}</td>
+                            <td>{{ food.name }}</td>
+                            <td>{{ food.quantity or 1 }}</td>
+                            <td>{{ food.calories }}</td>
+                            <td>
+                                <form method="GET" action="{{ url_for('edit_food_entry') }}" class="inline-form">
+                                    <input type="hidden" name="food_id" value="{{ food.id }}">
+                                    <input type="hidden" name="meal_type" value="{{ meal }}">
+                                    <button type="submit" class="edit-btn small-btn" style="margin-top: 6px; margin-bottom: 2px; width: 60px;">Edit</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+  </div>
+</div>
+<!-- Stacked Card Table (Mobile) -->
+<div class="stacked-table">
+  {% set meal_order = ["breakfast", "lunch", "dinner", "snack"] %}
+  {% for meal in meal_order %}
+    {% if meals.get(meal) %}
+      {% for food in meals[meal] %}
+        <div class="stacked-card">
+          <button class="stacked-card-header" type="button">
+            <span class="stacked-card-title">{{ food.name }}</span>
+            <span class="toggle-icon">&#9660;</span>
+          </button>
+          <div class="stacked-card-content">
+            <div><strong>Meal:</strong> {{ meal.capitalize() }}</div>
+            <div><strong>Quantity:</strong> {{ food.quantity or 1 }}</div>
+            <div><strong>Calories:</strong> {{ food.calories }}</div>
+            <div class="card-actions">
+              <form method="GET" action="{{ url_for('edit_food_entry') }}" class="inline-form">
+                <input type="hidden" name="food_id" value="{{ food.id }}">
+                <input type="hidden" name="meal_type" value="{{ meal }}">
+                <button type="submit" class="edit-btn small-btn" style="margin-top: 6px; margin-bottom: 2px; width: 60px;">Edit</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
 </div>
 <p style="text-align:right; font-size:1.2em;"><strong>Total Calories:</strong> {{ total_calories }}</p>
 <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+<!-- Collapsible card JS -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var headers = document.querySelectorAll('.stacked-card-header');
+  headers.forEach(function(header) {
+    header.addEventListener('click', function() {
+      var content = header.nextElementSibling;
+      var icon = header.querySelector('.toggle-icon');
+      var isOpen = content.classList.contains('open');
+      // Close all others
+      document.querySelectorAll('.stacked-card-content.open').forEach(function(openContent) {
+        if (openContent !== content) {
+          openContent.classList.remove('open');
+          openContent.previousElementSibling.classList.remove('active');
+        }
+      });
+      if (!isOpen) {
+        content.classList.add('open');
+        header.classList.add('active');
+      } else {
+        content.classList.remove('open');
+        header.classList.remove('active');
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

@@ -642,8 +642,9 @@ body.dark-mode button:hover {
 
 /* === Inline Form Styling === */
 .inline-form {
-    display: inline-block;
-    margin: 0 2px;
+    display: block;
+    margin: 4px 0;
+    text-align: center;
 }
 
 /* === Accessibility Improvements === */
@@ -838,10 +839,9 @@ button:focus-visible, a:focus-visible {
 
 /* Smaller buttons and inputs for table actions */
 .small-btn {
-    padding: 5px 10px;
-    font-size: 0.95em;
-    margin-left: 2px;
-    margin-right: 2px;
+    width: 60px;
+    margin: 0 auto;
+    display: block;
 }
 .small-input {
     width: 60px;
@@ -1052,4 +1052,90 @@ button:focus-visible, a:focus-visible {
         width: 90vw;
         padding: 20px;
     }
+}
+
+/* === Stacked Card Table for Mobile === */
+@media (max-width: 600px) {
+  .summary-table-wrapper, .summary-table-responsive {
+    display: none !important;
+  }
+  .stacked-table {
+    display: block;
+    width: 100%;
+    margin: 0 auto 20px auto;
+    padding: 0;
+  }
+  .stacked-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 16px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+  }
+  .stacked-card-header {
+    width: 100%;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    outline: none;
+    text-align: left;
+    padding: 16px 18px;
+    font-size: 1.08em;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.2s;
+  }
+  .stacked-card-header .toggle-icon {
+    margin-left: 12px;
+    font-size: 1.2em;
+    transition: transform 0.2s;
+  }
+  .stacked-card-header.active .toggle-icon {
+    transform: rotate(180deg);
+  }
+  .stacked-card-content {
+    background: #f9f9f9;
+    color: #333;
+    padding: 0 18px 0 18px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s, padding-top 0.3s, padding-bottom 0.3s;
+    font-size: 1em;
+  }
+  .stacked-card-content.open {
+    padding-top: 10px;
+    padding-bottom: 12px;
+    max-height: 300px;
+  }
+  .stacked-card-content > div {
+    margin-bottom: 6px;
+  }
+  .stacked-table .card-actions {
+    margin-top: 8px;
+  }
+}
+
+/* Hide stacked-table on desktop */
+@media (min-width: 601px) {
+  .stacked-table {
+    display: none !important;
+  }
+}
+
+/* Dark mode for stacked cards */
+body.dark-mode .stacked-card {
+  background: #232323;
+  border-color: #333;
+}
+body.dark-mode .stacked-card-header {
+  background: #388e3c;
+  color: #fff;
+}
+body.dark-mode .stacked-card-content {
+  background: #181818;
+  color: #f5f5f5;
 }
