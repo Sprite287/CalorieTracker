@@ -1,103 +1,64 @@
-Calorie Tracker - Web Application
+# Calorie Tracker
 
-========================================
-ABOUT
-----------------------------------------
-Calorie Tracker is a web application that helps you track your daily calorie intake, manage food entries, set goals, and monitor your progress over time. It supports multiple user profiles and provides summaries, graphs, and history features.
+A web-based calorie and food tracking application built with Flask, SQLAlchemy, and PostgreSQL.
 
-========================================
-REQUIREMENTS
-----------------------------------------
-- Python 3.8 or newer
-- pip (Python package manager)
-- The following Python packages:
-    - flask
-    - waitress
-    - gunicorn (for deployment)
-    - blinker, jinja2, requests, etc. (see requirements.txt)
+## Features
+- Track daily meals and calories
+- Set and monitor calorie and weight goals
+- View weekly averages and history
+- Manage a personal food database (per profile)
+- Responsive, user-friendly interface
+- Supports multiple user profiles
+- Scalable JSON storage for profile data
 
-To install all required packages, run:
-    pip install -r requirements.txt
+## Requirements
+- Python 3.9+
+- PostgreSQL database
 
-========================================
-FILES & FOLDERS
-----------------------------------------
-- CalorieApp.py         : Main Flask web application
-- fix_profiles.py       : (Legacy) Script for old JSON profile management
-- Start.py              : Script to safely start the server
-- Stop.py               : Script to safely stop the server
-- Restart.py            : Script to safely restart the server
-- Templates/            : HTML templates for the web pages
-- static/css/           : CSS stylesheets
-- calorie_tracker.db    : SQLite database for all user, food, and log data
-- ReadMe.txt            : This help file
-- requirements.txt      : Lists required Python packages
-- Procfile              : Specifies commands for deployment
-- .gitignore            : Specifies files to ignore in Git
+## Setup
+1. **Clone the repository:**
+   ```
+   git clone <your-repo-url>
+   cd CalorieTracker
+   ```
+2. **Install dependencies:**
+   ```
+   pip install -r requirements.txt
+   ```
+3. **Configure environment variables:**
+   - Create a `.env` file in the project root with the following:
+     ```
+     DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<dbname>
+     SECRET_KEY=your-secret-key
+     ADMIN_BACKUP_KEY=your-admin-key
+     ```
+4. **Set up the database:**
+   - Ensure your PostgreSQL server is running and the database exists.
+   - The app will auto-create tables on first run using SQLAlchemy models.
+   - **Note:** The `Profile` model uses a `Text` column for scalable JSON storage. If upgrading from an older version, you may need to alter the column type in your database.
 
-========================================
-HOW TO USE
-----------------------------------------
+5. **Run the app:**
+   ```
+   python -m waitress --host=0.0.0.0 --port=5000 CalorieApp:app
+   ```
+   Or for development:
+   ```
+   python CalorieApp.py
+   ```
 
-1. **Starting the Server**
-   - Open a terminal/command prompt in the project folder.
-   - Run:
-        python Start.py
-   - The server will start in the background.
-   - Open your web browser and go to:
-        http://localhost:5000
+6. **Access the app:**
+   - Open your browser to `http://localhost:5000`
 
-2. **Stopping the Server**
-   - In the terminal/command prompt, run:
-        python Stop.py
+## Technical Notes
+- All food and meal data is stored per profile; there is no global food database.
+- Database sessions are managed using Python context managers for safety and clarity.
+- If you change the type of a column (e.g., from String to Text), you may need to run a migration or alter the table manually in PostgreSQL.
 
-3. **Restarting the Server**
-   - To apply code changes or refresh the server, run:
-        python Restart.py
+## Folder Structure
+- `CalorieApp.py` - Main Flask app
+- `db_handler_orm.py`, `db_orm.py`, `models.py` - Database/ORM logic
+- `static/` - CSS and static assets
+- `templates/` - Jinja2 HTML templates
 
-4. **Manual Start (Advanced)**
-   - You can also start the server manually with:
-        python -m waitress --host=0.0.0.0 --port=5000 CalorieApp:app
-
-5. **Render Deployment**
-   - Push your code to GitHub.
-   - Create a new Web Service on Render and connect your repo.
-   - Set build command: pip install -r requirements.txt
-   - Set start command: gunicorn CalorieApp:app
-   - (Recommended) Add a disk for persistent storage to persist calorie_tracker.db
-   - Set SECRET_KEY in environment variables for Flask session security.
-   - After deploy, use your login page to access your account.
-
-========================================
-FEATURES
-----------------------------------------
-- Multiple user profiles
-- Add, edit, and delete food entries
-- Set daily calorie and weight goals
-- View daily summaries and weekly averages
-- Visual progress bars and graphs
-- History and statistics
-- Mobile-friendly interface
-
-========================================
-TROUBLESHOOTING
-----------------------------------------
-- If you see "Server already running..." when starting, use Stop.py first.
-- If you change the code, use Restart.py to safely reload the server.
-- If you get errors about missing packages, run:
-      pip install -r requirements.txt
-- If you have issues with user profiles or need magic login links, use fix_profiles.py (legacy, for old JSON data only).
-
-========================================
-PRODUCTION NOTES
-----------------------------------------
-- All cookies are set with secure and httponly flags for HTTPS.
-- The app uses os.environ.get("PORT", 5000) and host="0.0.0.0" for Render compatibility.
-- Always use HTTPS (Render provides this by default).
-
-========================================
-SUPPORT
-----------------------------------------
-For questions or issues, please contact the project maintainer.
-
-Enjoy tracking your calories!
+## License
+See [LICENSE](LICENSE).
