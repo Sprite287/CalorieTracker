@@ -551,6 +551,10 @@ def weight_history():
         weight_goal=weight_goal
     )
 
+@app.route("/healthz")
+def healthz():
+    return "OK", 200
+
 @app.after_request
 def add_header(response):
     """Add headers to disable caching."""
