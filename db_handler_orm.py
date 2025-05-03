@@ -34,8 +34,12 @@ def save_profile(profile_name, profile_data):
 
 def get_daily_log(profile_name, today):
     profile = get_profile_data(profile_name)
-    weekly_log = profile.get("weekly_log", {})
-    return weekly_log.get(today, {"breakfast": [], "lunch": [], "dinner": [], "snack": []})
+    if "weekly_log" not in profile:
+        profile["weekly_log"] = {}
+    if today not in profile["weekly_log"]:
+        profile["weekly_log"][today] = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
+        save_profile(profile_name, profile)
+    return profile["weekly_log"][today]
 
 def add_food_to_log(profile_name, today, meal_type, food_id, food_name, calories, quantity):
     # Add to ORM table (no quantity field)
