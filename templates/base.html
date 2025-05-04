@@ -16,12 +16,23 @@
     </script>
 
     <script>
+        // Set a cookie with the user's local date (YYYY-MM-DD) at local midnight
+        function setUserLocalDateCookie() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const localDate = `${year}-${month}-${day}`;
+            document.cookie = `user_local_date=${localDate}; path=/; SameSite=Lax`;
+        }
+        setUserLocalDateCookie();
+    </script>
+    <script>
         // Set a cookie with the user's UTC date (YYYY-MM-DD) based on their local midnight
+        // (legacy, can be removed if not needed)
         function setUserUtcDateCookie() {
             const now = new Date();
-            // Get the user's local midnight as a Date object
             const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            // Convert local midnight to UTC date string (YYYY-MM-DD)
             const utcYear = localMidnight.getUTCFullYear();
             const utcMonth = String(localMidnight.getUTCMonth() + 1).padStart(2, '0');
             const utcDay = String(localMidnight.getUTCDate()).padStart(2, '0');

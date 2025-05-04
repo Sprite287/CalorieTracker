@@ -92,7 +92,7 @@ def home():
         return redirect(url_for("select_profile"))
     
     profile_data = db_handler.get_profile_data(profile_name)
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     db_handler.initialize_daily_log(profile_name, today)
 
     weekly_log = db_handler.get_weekly_log(profile_name)
@@ -252,7 +252,7 @@ def set_goal():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     db_handler.initialize_daily_log(profile_name, today)
     if request.method == "POST":
         try:
@@ -282,7 +282,7 @@ def add_food():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     db_handler.initialize_daily_log(profile_name, today)
     food_database = db_handler.get_food_database(profile_name)
     if request.method == "POST":
@@ -325,7 +325,7 @@ def delete_food_entry():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     food_id = request.form.get("food_id")
     meal_type = request.form.get("meal_type")
     if not food_id or not meal_type:
@@ -340,7 +340,7 @@ def edit_food_entry():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     if request.method == "POST":
         food_id = request.form.get("food_id")
         meal_type = request.form.get("meal_type")
@@ -418,7 +418,7 @@ def summary():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     meals = db_handler.get_daily_log(profile_name, today)
     total_calories = db_handler.calculate_total_calories(profile_name, today)
     return render_template(
@@ -513,7 +513,7 @@ def reset_daily_calories():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     food_id = request.form.get("food_id")
     new_calories = request.form.get("new_calories")
     meal_type = request.form.get("meal_type")
@@ -533,7 +533,7 @@ def calorie_graph():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     db_handler.initialize_daily_log(profile_name, today)
     meal_calories = db_handler.get_meal_calories(profile_name, today)
     weekly_data = db_handler.get_weekly_data(profile_name)
@@ -581,7 +581,7 @@ def log_weight():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_utc_today()
+    today = get_user_today()  # Use local date from cookie
     weight = request.form.get("weight")
     try:
         if not weight or float(weight) <= 0:
