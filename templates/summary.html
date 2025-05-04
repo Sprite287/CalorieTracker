@@ -81,23 +81,44 @@
 document.addEventListener('DOMContentLoaded', function() {
   var headers = document.querySelectorAll('.stacked-card-header');
   headers.forEach(function(header) {
+    var icon = header.querySelector('.toggle-icon');
+    // Always set initial state to down arrow
+    if (icon) {
+      icon.innerHTML = '&#9660;'; // ▼
+      icon.style.transform = 'rotate(0deg)';
+    }
     header.addEventListener('click', function() {
       var content = header.nextElementSibling;
-      var icon = header.querySelector('.toggle-icon');
-      var isOpen = content.classList.contains('open');
-      // Close all others
+      // Accordion: close all others
       document.querySelectorAll('.stacked-card-content.open').forEach(function(openContent) {
         if (openContent !== content) {
           openContent.classList.remove('open');
-          openContent.previousElementSibling.classList.remove('active');
+          if (openContent.previousElementSibling) {
+            openContent.previousElementSibling.classList.remove('active');
+            var otherIcon = openContent.previousElementSibling.querySelector('.toggle-icon');
+            if (otherIcon) {
+              otherIcon.innerHTML = '&#9660;'; // ▼
+              otherIcon.style.transform = 'rotate(0deg)';
+            }
+          }
         }
       });
+      // Toggle current
+      var isOpen = content.classList.contains('open');
       if (!isOpen) {
         content.classList.add('open');
         header.classList.add('active');
+        if (icon) {
+          icon.innerHTML = '&#9650;'; // ▲
+          icon.style.transform = 'rotate(0deg)';
+        }
       } else {
         content.classList.remove('open');
         header.classList.remove('active');
+        if (icon) {
+          icon.innerHTML = '&#9660;'; // ▼
+          icon.style.transform = 'rotate(0deg)';
+        }
       }
     });
   });

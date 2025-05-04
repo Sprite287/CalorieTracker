@@ -30,6 +30,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Calorie Tracker{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://kit.fontawesome.com/043020f8f3.js" crossorigin="anonymous"></script>
 
     <!-- Apply dark mode immediately to prevent white flash -->
     <script>
@@ -92,6 +93,30 @@
         .skip-link:focus {
             top: 0;
         }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: var(--primary-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 0;
+            z-index: 1000;
+        }
+
+        .bottom-nav-link {
+            text-decoration: none;
+            color: #fff;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .bottom-nav-icon {
+            display: block;
+            font-size: 1.5rem;
+        }
     </style>
 </head>
 <body>
@@ -119,6 +144,34 @@
     <div class="container" id="main-content" role="main">
         {% block content %}{% endblock %}
     </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav" aria-label="Primary">
+        <a href="{{ url_for('home') }}" class="bottom-nav-link{% if request.endpoint == 'home' %} active{% endif %}" aria-label="Home">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-house"></i></span>
+            <span class="bottom-nav-label">Home</span>
+        </a>
+        <a href="{{ url_for('add_food') }}" class="bottom-nav-link{% if request.endpoint == 'add_food' %} active{% endif %}" aria-label="Add Food">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-plus"></i></span>
+            <span class="bottom-nav-label">Add</span>
+        </a>
+        <a href="{{ url_for('summary') }}" class="bottom-nav-link{% if request.endpoint == 'summary' %} active{% endif %}" aria-label="Summary">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+            <span class="bottom-nav-label">Summary</span>
+        </a>
+        <a href="{{ url_for('history') }}" class="bottom-nav-link{% if request.endpoint == 'history' %} active{% endif %}" aria-label="History">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-calendar-days"></i></span>
+            <span class="bottom-nav-label">History</span>
+        </a>
+        <a href="{{ url_for('calorie_graph') }}" class="bottom-nav-link{% if request.endpoint == 'calorie_graph' %} active{% endif %}" aria-label="Calorie Graph">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-chart-bar"></i></span>
+            <span class="bottom-nav-label">Graph</span>
+        </a>
+        <a href="{{ url_for('weekly_average') }}" class="bottom-nav-link{% if request.endpoint == 'weekly_average' %} active{% endif %}" aria-label="Weekly Average">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+            <span class="bottom-nav-label">Weekly</span>
+        </a>
+    </nav>
 
     <!-- Dark Mode Toggle Script -->
     <script>

@@ -336,6 +336,7 @@ button.delete-btn:hover, .delete-btn:hover {
         max-width: 100% !important;
         padding: 10px !important;
         box-sizing: border-box;
+        margin-bottom: 60px !important; /* Prevents content from being hidden behind nav */
     }
     .navigation-buttons-vertical {
         width: 100% !important;
@@ -353,6 +354,12 @@ button.delete-btn:hover, .delete-btn:hover {
         margin: 8px 0 !important;
         border-radius: 24px !important;
         box-sizing: border-box;
+    }
+    .weight-form {
+        margin-bottom: 70px !important;
+    }
+    .weight-form button[type="submit"] {
+        margin-bottom: 10px !important;
     }
 }
 
@@ -565,12 +572,16 @@ body.dark-mode .pagination-info {
     font-size: 1.5rem;
     font-weight: bold;
     cursor: pointer;
-    color: var(--primary-color);
-    transition: all 0.2s;
+    color: #ff4d4d; /* Red for closed by default */
+    transition: color 0.2s, transform 0.2s;
 }
 .toggle-icon:hover {
     color: var(--secondary-color);
     transform: scale(1.2);
+}
+.stacked-card-header.active .toggle-icon,
+.collapsible.active .toggle-icon {
+    color: #1976d2; /* Blue for open */
 }
 
 /* === Dark Mode === */
@@ -1142,24 +1153,43 @@ button:focus-visible, a:focus-visible {
     transform: rotate(180deg);
   }
   .stacked-card-content {
-    background: #f9f9f9;
-    color: #333;
-    padding: 0 18px 0 18px;
     max-height: 0;
     overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
     transition: max-height 0.3s, padding-top 0.3s, padding-bottom 0.3s;
-    font-size: 1em;
+    position: relative;
   }
   .stacked-card-content.open {
+    max-height: 300px;
+    overflow-y: auto;
     padding-top: 10px;
     padding-bottom: 12px;
-    max-height: 300px;
   }
   .stacked-card-content > div {
     margin-bottom: 6px;
   }
   .stacked-table .card-actions {
     margin-top: 8px;
+  }
+}
+
+/* --- Stacked Card Improvements for Mobile Dropdowns --- */
+@media (max-width: 600px) {
+  .stacked-card-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--primary-color);
+    color: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    transition: background 0.2s;
+  }
+  .stacked-card-header .toggle-icon {
+    transition: transform 0.2s;
+  }
+  .stacked-card-header.active .toggle-icon {
+    transform: rotate(180deg);
   }
 }
 
@@ -1319,6 +1349,87 @@ body.dark-mode .food-db-edit-section h3 {
 body.dark-mode .food-db-form label,
 body.dark-mode .food-db-edit-section label {
     color: #e0e0e0;
+}
+
+/* === Bottom Navigation Bar === */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100vw;
+  background: var(--primary-color);
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  padding: 0 0 4px 0;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.10);
+  border-top: 1.5px solid #e0e0e0;
+  z-index: 1200;
+}
+.bottom-nav-link {
+  color: #fff;
+  text-decoration: none;
+  text-align: center;
+  font-size: 0.98em;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 56px;
+  padding: 6px 0 2px 0;
+  transition: color 0.2s, background 0.2s;
+  border-radius: 12px 12px 0 0;
+  position: relative;
+}
+.bottom-nav-link .bottom-nav-icon {
+  font-size: 1.7em;
+  line-height: 1;
+  margin-bottom: 2px;
+  display: block;
+}
+.bottom-nav-label {
+  font-size: 0.85em;
+  margin-top: 0;
+  white-space: nowrap;
+}
+.bottom-nav-link.active {
+  background: #fff;
+  color: var(--primary-color);
+  box-shadow: 0 -2px 8px rgba(76,175,80,0.10);
+}
+.bottom-nav-link.active .bottom-nav-icon {
+  color: var(--primary-color);
+}
+.bottom-nav-link:active, .bottom-nav-link:focus {
+  color: #ffeb3b;
+  background: rgba(255,255,255,0.12);
+}
+@media (max-width: 600px) {
+  .bottom-nav {
+    font-size: 1em;
+    padding-bottom: 4px;
+  }
+}
+body.dark-mode .bottom-nav {
+  background: #232323;
+  color: #fff;
+  border-top: 1.5px solid #333;
+}
+body.dark-mode .bottom-nav-link {
+  color: #fff;
+}
+body.dark-mode .bottom-nav-link.active {
+  background: #181818;
+  color: #90caf9;
+}
+body.dark-mode .bottom-nav-link.active .bottom-nav-icon {
+  color: #90caf9;
+}
+body.dark-mode .bottom-nav-link:active, body.dark-mode .bottom-nav-link:focus {
+  color: #ffeb3b;
+  background: rgba(255,255,255,0.10);
 }
 
 /* === Fitness Styles === */

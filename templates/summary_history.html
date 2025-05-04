@@ -72,15 +72,43 @@
     document.addEventListener("DOMContentLoaded", () => {
         const collapsibles = document.querySelectorAll(".collapsible");
         collapsibles.forEach(button => {
+            const icon = button.querySelector('.toggle-icon');
+            if (icon) {
+                icon.innerHTML = '▼';
+                icon.style.transform = 'rotate(0deg)';
+            }
             button.addEventListener("click", function () {
+                // Accordion: close all others
+                collapsibles.forEach(otherBtn => {
+                    if (otherBtn !== this) {
+                        otherBtn.classList.remove("active");
+                        const otherContent = otherBtn.nextElementSibling;
+                        if (otherContent) {
+                            otherContent.style.maxHeight = null;
+                            const otherIcon = otherBtn.querySelector('.toggle-icon');
+                            if (otherIcon) {
+                                otherIcon.innerHTML = '▼';
+                                otherIcon.style.transform = 'rotate(0deg)';
+                            }
+                        }
+                    }
+                });
+                // Toggle current
                 this.classList.toggle("active");
                 const content = this.nextElementSibling;
+                const icon = this.querySelector('.toggle-icon');
                 if (content.style.maxHeight) {
                     content.style.maxHeight = null;
-                    this.querySelector('.toggle-icon').textContent = '▼';
+                    if (icon) {
+                        icon.innerHTML = '▼';
+                        icon.style.transform = 'rotate(0deg)';
+                    }
                 } else {
                     content.style.maxHeight = content.scrollHeight + "px";
-                    this.querySelector('.toggle-icon').textContent = '▲';
+                    if (icon) {
+                        icon.innerHTML = '▲';
+                        icon.style.transform = 'rotate(0deg)';
+                    }
                 }
             });
         });
