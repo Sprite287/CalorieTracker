@@ -9,21 +9,21 @@
   <span id="pretty-date-text">{{ today }}</span>
 </p>
 <script>
-// Convert UTC date ({{ today }}) to user's local date and format it nicely
+// Convert local date ({{ today }}) to a pretty string in the user's local timezone
 (function() {
-  const utcDateStr = "{{ today }}";
-  const utcParts = utcDateStr.split("-");
-  if (utcParts.length === 3) {
-    // Create a Date object in UTC
-    const utcDate = new Date(Date.UTC(
-      parseInt(utcParts[0]),
-      parseInt(utcParts[1]) - 1,
-      parseInt(utcParts[2])
-    ));
+  const dateStr = "{{ today }}";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    // Create a Date object in local time
+    const localDate = new Date(
+      parseInt(parts[0]),
+      parseInt(parts[1]) - 1,
+      parseInt(parts[2])
+    );
     // Format as: Saturday, May 3, 2025
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const localStr = utcDate.toLocaleDateString(undefined, options);
-    document.getElementById("pretty-date-text").textContent = localStr;
+    const pretty = localDate.toLocaleDateString(undefined, options);
+    document.getElementById("pretty-date-text").textContent = pretty;
   }
 })();
 </script>
@@ -32,6 +32,10 @@
 <p>Calories Left: <span style="color: green;">{{ calories_left if calories_left > 0 else 0 }}</span></p>
 {% if calories_over > 0 %}
     <p style="color: red;">You are over your goal by {{ calories_over }} calories.</p>
+{% endif %}
+
+{% if date_warning %}
+  <div class="flash-message error" role="alert" tabindex="0">{{ date_warning }}</div>
 {% endif %}
 
 <!-- Progress Bar -->
@@ -70,23 +74,28 @@
 {% endif %}
 
 <!-- Navigation Links -->
-<div class="navigation-buttons-vertical">
-    <a href="{{ url_for('add_food') }}" class="nav-button">Add Food</a>
-    <a href="{{ url_for('summary') }}" class="nav-button">Summary</a>
-    <a href="{{ url_for('set_goal') }}" class="nav-button">Set Goal</a>
-    <a href="{{ url_for('weekly_average') }}" class="nav-button">Weekly Average</a>
-    <a href="{{ url_for('calorie_graph') }}" class="nav-button">Calorie Graph</a>
-    <a href="{{ url_for('weight_history') }}" class="nav-button">Weight History</a>
-    <a href="{{ url_for('history') }}" class="nav-button">History</a>
-    <a href="{{ url_for('manage_food_database') }}" class="nav-button">Manage Food Database</a>
-</div>
+<nav role="navigation" aria-label="Main navigation">
+    <div class="navigation-buttons-vertical">
+        <a href="{{ url_for('add_food') }}" class="nav-button">Add Food</a>
+        <a href="{{ url_for('summary') }}" class="nav-button">Summary</a>
+        <a href="{{ url_for('set_goal') }}" class="nav-button">Set Goal</a>
+        <a href="{{ url_for('weekly_average') }}" class="nav-button">Weekly Average</a>
+        <a href="{{ url_for('calorie_graph') }}" class="nav-button">Calorie Graph</a>
+        <a href="{{ url_for('weight_history') }}" class="nav-button">Weight History</a>
+        <a href="{{ url_for('history') }}" class="nav-button">History</a>
+        <a href="{{ url_for('manage_food_database') }}" class="nav-button">Manage Food Database</a>
+    </div>
+</nav>
 
 <a href="{{ url_for('select_profile') }}" class="back-button" style="margin-top: 18px;">Return to Profile Select</a>
 
 <!-- Log Weight Form -->
-<form method="POST" action="{{ url_for('log_weight') }}" class="weight-form">
+<form method="POST" action="{{ url_for('log_weight') }}" class="weight-form" novalidate>
     <label for="weight">Log Weight:</label>
-    <input type="number" name="weight" id="weight" step="0.1" min="1" required>
+    <input type="number" name="weight" id="weight" step="0.1" min="1" required aria-required="true" aria-describedby="weight-error">
+    {% if get_flashed_messages(category_filter=['error']) %}
+      <span id="weight-error" class="error" role="alert">{{ get_flashed_messages(category_filter=['error'])[0] }}</span>
+    {% endif %}
     <button type="submit">Log</button>
 </form>
 {% endblock %}

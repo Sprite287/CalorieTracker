@@ -6,7 +6,7 @@
 <h1>Summary History</h1>
 
 <!-- Date Filter Form -->
-<form method="GET" action="{{ url_for('history') }}" class="filter-form">
+<form method="GET" action="{{ url_for('history') }}" class="filter-form" novalidate>
     <label for="start_date">Start Date:</label>
     <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}">
     <label for="end_date">End Date:</label>

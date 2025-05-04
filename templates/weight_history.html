@@ -39,6 +39,15 @@
         <p style="text-align:center;">No weight history available.</p>
     {% endif %}
 
+    <form method="POST" action="{{ url_for('log_weight') }}" class="weight-form" novalidate>
+        <label for="weight">Log Weight:</label>
+        <input type="number" name="weight" id="weight" step="0.1" min="1" required aria-required="true" aria-describedby="weight-error">
+        {% if get_flashed_messages(category_filter=['error']) %}
+          <span id="weight-error" class="error" role="alert">{{ get_flashed_messages(category_filter=['error'])[0] }}</span>
+        {% endif %}
+        <button type="submit">Log</button>
+    </form>
+
     <div style="text-align:center;">
         <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
     </div>

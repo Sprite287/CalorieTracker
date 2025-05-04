@@ -1,6 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // Set a cookie with the user's local date (YYYY-MM-DD) at local midnight
+        function setUserLocalDateCookie() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const localDate = `${year}-${month}-${day}`;
+            document.cookie = `user_local_date=${localDate}; path=/; SameSite=Lax`;
+            return localDate;
+        }
+        // Check if cookie is stale and reload if needed
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        const todayStr = setUserLocalDateCookie();
+        const cookieDate = getCookie('user_local_date');
+        if (cookieDate && cookieDate !== todayStr) {
+            // If cookie is stale, reload the page to update backend
+            window.location.reload();
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,18 +39,6 @@
         }
     </script>
 
-    <script>
-        // Set a cookie with the user's local date (YYYY-MM-DD) at local midnight
-        function setUserLocalDateCookie() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const localDate = `${year}-${month}-${day}`;
-            document.cookie = `user_local_date=${localDate}; path=/; SameSite=Lax`;
-        }
-        setUserLocalDateCookie();
-    </script>
     <script>
         // Set a cookie with the user's UTC date (YYYY-MM-DD) based on their local midnight
         // (legacy, can be removed if not needed)
@@ -65,16 +77,46 @@
         .dark-mode-toggle span {
             font-size: 1.2rem;
         }
+
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #000;
+            color: #fff;
+            padding: 8px;
+            z-index: 1000;
+            transition: top 0.3s;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
     </style>
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <!-- Dark Mode Toggle Button -->
     <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle Dark Mode">
         <span id="darkModeIcon">🌙</span>
     </button>
 
+    <!-- Flash Messages (ARIA live region for accessibility) -->
+    <div id="flash-messages" aria-live="polite" aria-atomic="true" role="status">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul class="flash-list">
+              {% for category, message in messages %}
+                <li class="flash-message {{ category }}" tabindex="0">{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+    </div>
+
     <!-- Main Content Block -->
-    <div class="container">
+    <div class="container" id="main-content" role="main">
         {% block content %}{% endblock %}
     </div>
 

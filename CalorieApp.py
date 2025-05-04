@@ -36,17 +36,22 @@ def get_previous_date(date_str):
     return prev_date.strftime("%Y-%m-%d")
 
 def get_user_today():
-    """Get the user's local date from the cookie, fallback to server date if missing/invalid."""
+    """Get the user's local date from the cookie, fallback to server date if missing/invalid. Warn if device date is off from server date."""
     user_date = request.cookies.get("user_local_date")
+    server_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    warning = None
     if user_date:
         try:
             # Basic validation: YYYY-MM-DD
             datetime.datetime.strptime(user_date, "%Y-%m-%d")
-            return user_date
+            # Warn if device date is off by more than 1 day
+            delta = abs((datetime.datetime.strptime(user_date, "%Y-%m-%d") - datetime.datetime.strptime(server_date, "%Y-%m-%d")).days)
+            if delta > 1:
+                warning = f"Your device date ({user_date}) is different from the server date ({server_date}). Please check your device clock."
+            return user_date, warning
         except Exception:
             pass
-    # Fallback to server date
-    return datetime.datetime.now().strftime("%Y-%m-%d")
+    return server_date, warning
 
 def is_valid_date(date_str, min_year=None, max_year=None):
     """Validate date string is YYYY-MM-DD and within optional year bounds."""
@@ -92,7 +97,7 @@ def home():
         return redirect(url_for("select_profile"))
     
     profile_data = db_handler.get_profile_data(profile_name)
-    today = get_user_today()  # Use local date from cookie
+    today, date_warning = get_user_today()
     db_handler.initialize_daily_log(profile_name, today)
 
     weekly_log = db_handler.get_weekly_log(profile_name)
@@ -177,6 +182,7 @@ def home():
         weight_change=weight_change,
         arrow=arrow,
         arrow_color=arrow_color,
+        date_warning=date_warning,
     )
 
 @app.route("/select_profile", methods=["GET", "POST"])
@@ -210,7 +216,9 @@ def delete_profile(profile_name):
     flash(f"Profile '{profile_name}' has been deleted.", "success")
     if "current_profile" in session and session["current_profile"] == profile_name:
         session.pop("current_profile", None)
-    return redirect(url_for("select_profile"))
+    resp = make_response(redirect(url_for("select_profile")))
+    resp.set_cookie("profile_uuid", "", expires=0, secure=True, httponly=True)
+    return resp
 
 @app.route("/logout")
 def logout():
@@ -252,7 +260,7 @@ def set_goal():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     db_handler.initialize_daily_log(profile_name, today)
     if request.method == "POST":
         try:
@@ -282,7 +290,7 @@ def add_food():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     db_handler.initialize_daily_log(profile_name, today)
     food_database = db_handler.get_food_database(profile_name)
     if request.method == "POST":
@@ -291,22 +299,35 @@ def add_food():
             food_name_input = request.form.get("food_name_input", "").strip()
             meal_type = request.form.get("meal_type")
             calories = request.form.get("calories")
-            quantity = int(request.form.get("quantity", 1))
+            quantity = request.form.get("quantity", 1)
+            # Backend validation
+            if not meal_type or meal_type not in ["breakfast", "lunch", "dinner", "snack"]:
+                raise ValueError("Invalid meal type.")
+            try:
+                quantity = int(quantity)
+                if quantity < 1:
+                    raise ValueError
+            except Exception:
+                raise ValueError("Quantity must be a positive integer.")
             if food_name:
                 calories_per_unit = db_handler.get_food_calories(profile_name, food_name)
                 if calories_per_unit is None:
                     raise ValueError("Selected food is not in the database.")
             elif food_name_input:
-                if not calories or int(calories) <= 0:
-                    raise ValueError("Calories must be greater than 0 for new food.")
+                try:
+                    calories = int(calories)
+                    if calories <= 0:
+                        raise ValueError
+                except Exception:
+                    raise ValueError("Calories must be a positive integer for new food.")
                 food_name = food_name_input
-                calories_per_unit = int(calories)
+                calories_per_unit = calories
                 db_handler.set_food_calories(profile_name, food_name, calories_per_unit)
             else:
                 raise ValueError("You must select an existing food or enter a new food name.")
-            if not meal_type or meal_type not in ["breakfast", "lunch", "dinner", "snack"]:
-                raise ValueError("Invalid meal type.")
             total_calories = calories_per_unit * quantity
+            if total_calories <= 0:
+                raise ValueError("Total calories must be greater than 0.")
             food_id = str(uuid.uuid4())
             db_handler.add_food_to_log(profile_name, today, meal_type, food_id, food_name, total_calories, quantity)
             flash(f"Added {quantity}x {food_name} with {total_calories} calories to {meal_type}.", "success")
@@ -325,7 +346,7 @@ def delete_food_entry():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     food_id = request.form.get("food_id")
     meal_type = request.form.get("meal_type")
     if not food_id or not meal_type:
@@ -340,28 +361,38 @@ def edit_food_entry():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     if request.method == "POST":
         food_id = request.form.get("food_id")
         meal_type = request.form.get("meal_type")
         new_name = request.form.get("new_name")
-        new_quantity = int(request.form.get("new_quantity", 1))
-        # Fetch per-unit calories from food database
-        food_database = db_handler.get_food_database(profile_name)
-        per_unit_calories = food_database.get(new_name)
-        if per_unit_calories is not None:
-            new_calories = per_unit_calories * new_quantity
-        else:
-            # fallback: use user input if not in database
-            new_calories = int(request.form.get("new_calories", 0))
+        new_quantity = request.form.get("new_quantity", 1)
+        new_calories = request.form.get("new_calories", 0)
+        # Hardened backend validation
         if not food_id or not meal_type:
             flash("Invalid request. Missing food ID or meal type.", "error")
+            return redirect(url_for("summary"))
+        if not new_name or not isinstance(new_name, str) or not new_name.strip():
+            flash("Invalid food name.", "error")
+            return redirect(url_for("summary"))
+        try:
+            new_quantity = int(new_quantity)
+            if new_quantity < 1:
+                raise ValueError
+        except Exception:
+            flash("Quantity must be a positive integer.", "error")
+            return redirect(url_for("summary"))
+        try:
+            new_calories = int(new_calories)
+            if new_calories < 1:
+                raise ValueError
+        except Exception:
+            flash("Calories must be a positive integer.", "error")
             return redirect(url_for("summary"))
         db_handler.update_food_entry(profile_name, today, meal_type, food_id, new_name, new_calories, new_quantity)
         flash("Food entry updated successfully.", "success")
         return redirect(url_for("summary"))  # This reloads the summary page with updated data
     else:
-        # GET: Show edit form for the selected food entry
         food_id = request.args.get("food_id")
         meal_type = request.args.get("meal_type")
         meals = db_handler.get_daily_log(profile_name, today)
@@ -391,19 +422,22 @@ def edit_food_in_database():
         flash("No food selected.", "error")
         return redirect(url_for("manage_food_database"))
     if request.method == "POST":
-        new_name = request.form.get("new_name").strip()
+        new_name = request.form.get("new_name", "").strip()
         new_calories = request.form.get("new_calories")
-        if not new_name or not new_calories:
-            flash("Please provide both name and calories.", "error")
+        # Hardened backend validation
+        if not new_name or not isinstance(new_name, str) or not new_name.strip():
+            flash("Please provide a valid food name.", "error")
             return redirect(url_for("edit_food_in_database", food_name=food_name))
         try:
             new_calories = int(new_calories)
-            db_handler.edit_food_in_database(profile_name, food_name, new_name, new_calories)
-            flash(f"Food '{food_name}' updated to '{new_name}' with {new_calories} calories.", "success")
-            return redirect(url_for("manage_food_database"))
-        except Exception as e:
-            flash(str(e), "error")
+            if new_calories < 1:
+                raise ValueError
+        except Exception:
+            flash("Calories must be a positive integer.", "error")
             return redirect(url_for("edit_food_in_database", food_name=food_name))
+        db_handler.edit_food_in_database(profile_name, food_name, new_name, new_calories)
+        flash(f"Food '{food_name}' updated to '{new_name}' with {new_calories} calories.", "success")
+        return redirect(url_for("manage_food_database"))
     calories = db_handler.get_food_calories(profile_name, food_name)
     food_database = sorted(db_handler.get_food_database(profile_name).items())
     return render_template(
@@ -418,7 +452,7 @@ def summary():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     meals = db_handler.get_daily_log(profile_name, today)
     total_calories = db_handler.calculate_total_calories(profile_name, today)
     return render_template(
@@ -436,15 +470,19 @@ def reset_food_calories():
         return redirect(url_for("select_profile"))
     food_name = request.form.get("food_name")
     calories = request.form.get("calories")
-    if not food_name or not calories:
-        flash("Invalid request. Missing food name or calories.", "error")
+    # Hardened backend validation
+    if not food_name or not isinstance(food_name, str) or not food_name.strip():
+        flash("Invalid request. Missing or invalid food name.", "error")
         return redirect(url_for("manage_food_database"))
     try:
         calories = int(calories)
-        db_handler.set_food_calories(profile_name, food_name, calories)
-        flash(f"Calorie count for '{food_name}' has been reset to {calories}.", "success")
-    except ValueError:
-        flash("Calories must be a number.", "error")
+        if calories < 1:
+            raise ValueError
+    except Exception:
+        flash("Calories must be a positive integer.", "error")
+        return redirect(url_for("manage_food_database"))
+    db_handler.set_food_calories(profile_name, food_name, calories)
+    flash(f"Calorie count for '{food_name}' has been reset to {calories}.", "success")
     return redirect(url_for("manage_food_database"))
 
 @app.route("/delete_food_from_database", methods=["POST"])
@@ -453,8 +491,9 @@ def delete_food_from_database():
     if not profile_name:
         return redirect(url_for("select_profile"))
     food_name = request.form.get("food_name")
-    if not food_name:
-        flash("Please select a food item to delete.", "error")
+    # Hardened backend validation
+    if not food_name or not isinstance(food_name, str) or not food_name.strip():
+        flash("Please select a valid food item to delete.", "error")
         return redirect(url_for("manage_food_database"))
     db_handler.delete_food_from_database(profile_name, food_name)
     flash(f"Food item '{food_name}' has been deleted.", "success")
@@ -513,7 +552,7 @@ def reset_daily_calories():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     food_id = request.form.get("food_id")
     new_calories = request.form.get("new_calories")
     meal_type = request.form.get("meal_type")
@@ -533,7 +572,7 @@ def calorie_graph():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     db_handler.initialize_daily_log(profile_name, today)
     meal_calories = db_handler.get_meal_calories(profile_name, today)
     weekly_data = db_handler.get_weekly_data(profile_name)
@@ -581,7 +620,7 @@ def log_weight():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = get_user_today()  # Use local date from cookie
+    today, _ = get_user_today()
     weight = request.form.get("weight")
     try:
         if not weight or float(weight) <= 0:

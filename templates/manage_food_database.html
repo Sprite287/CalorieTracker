@@ -15,10 +15,10 @@
 
 <div class="food-db-flex">
     <!-- Reset Food Calories Section -->
-    <form method="POST" action="{{ url_for('reset_food_calories') }}" class="food-db-form">
+    <form method="POST" action="{{ url_for('reset_food_calories') }}" class="food-db-form" novalidate>
         <h3>Reset Food Calories</h3>
         <label for="reset_food_name">Select Food:</label>
-        <select id="reset_food_name" name="food_name" required>
+        <select id="reset_food_name" name="food_name" required aria-required="true" aria-describedby="db-error">
             <option value="" disabled selected>-- Select Food --</option>
             {% if food_database %}
                 {% for food_name, calories in food_database %}
@@ -29,7 +29,10 @@
             {% endif %}
         </select>
         <label for="calories">New Calorie Value:</label>
-        <input type="number" id="calories" name="calories" placeholder="Enter new calorie value" min="1" required>
+        <input type="number" id="calories" name="calories" placeholder="Enter new calorie value" min="1" required aria-required="true" aria-describedby="db-error">
+        {% if error_message %}
+          <span id="db-error" class="error" role="alert">{{ error_message }}</span>
+        {% endif %}
         <button type="submit" class="add-food-btn food-db-btn">Reset Calories</button>
     </form>
 

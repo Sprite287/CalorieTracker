@@ -104,6 +104,15 @@ input[type="text"], input[type="number"], select {
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
+input[aria-invalid="true"] {
+    border: 2px solid #e53935;
+    background: #fff8f8;
+}
+input:focus, select:focus, textarea:focus {
+    outline: 2px solid #1976d2;
+    outline-offset: 2px;
+}
+
 /* === Buttons === */
 button, .nav-button, .add-food-link, .back-button, .filter-button, .pagination-button, .tab-button {
     box-shadow: 0 2px 8px rgba(76,175,80,0.08);
@@ -275,16 +284,20 @@ button.delete-btn:hover, .delete-btn:hover {
 }
 
 .skip-link {
-    margin-left: 1em;
-    color: #aaa;
-    text-decoration: underline;
-    font-size: 0.95em;
-    background: none;
-    border: none;
-    cursor: pointer;
+    position: absolute;
+    left: -999px;
+    top: 10px;
+    background: #222;
+    color: #fff;
+    padding: 8px 16px;
+    z-index: 2000;
+    border-radius: 6px;
+    font-size: 1rem;
+    text-decoration: none;
 }
-.skip-link:hover {
-    color: #4caf50;
+.skip-link:focus {
+    left: 10px;
+    outline: 2px solid #4caf50;
 }
 
 /* === Navigation Buttons (Vertical) === */
@@ -353,6 +366,37 @@ button.delete-btn:hover, .delete-btn:hover {
     color: var(--primary-color);
     font-weight: bold;
     margin-bottom: 20px;
+}
+
+/* === Flash Messages === */
+.flash-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px 0;
+    text-align: center;
+}
+.flash-message {
+    display: inline-block;
+    margin: 0.5em auto;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1.08em;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    outline: none;
+}
+.flash-message.success {
+    background: #e8f5e9;
+    color: #1b5e20;
+    border: 2px solid #43a047;
+}
+.flash-message.error {
+    background: #ffebee;
+    color: #b71c1c;
+    border: 2px solid #e53935;
+}
+.flash-message:focus {
+    outline: 2px solid #1976d2;
 }
 
 /* === Miscellaneous Sections === */
