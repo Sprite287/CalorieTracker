@@ -70,25 +70,42 @@ def delete_food_from_log(profile_name, today, meal_type, food_id):
         save_profile(profile_name, profile)
 
 def update_food_entry(profile_name, today, meal_type, food_id, new_name, new_calories, new_quantity):
-    # Update in profile JSON
     profile = get_profile_data(profile_name)
     food_db = profile.get("food_database", {})
     log = profile.get("weekly_log", {})
+    # Determine if calories is a manual override
+    per_unit = None
+    if new_name in food_db:
+        per_unit = food_db[new_name]
+    manual_override = False
+    try:
+        if per_unit is not None and int(new_calories) != int(per_unit) * int(new_quantity):
+            manual_override = True
+    except Exception:
+        manual_override = True
     if today in log and meal_type in log[today] and isinstance(log[today][meal_type], list):
         for f in log[today][meal_type]:
             if isinstance(f, dict) and f.get("id") == food_id:
                 f["name"] = new_name
                 f["quantity"] = new_quantity
-                f["calories"] = new_calories
-                f["manual_calories"] = True
-        save_profile(profile_name, profile)
+                # If not manual override, recalculate calories
+                if not manual_override and per_unit is not None:
+                    f["calories"] = int(per_unit) * int(new_quantity)
+                    f["manual_calories"] = False
+                else:
+                    f["calories"] = int(new_calories)
+                    f["manual_calories"] = True
+    save_profile(profile_name, profile)
     # Update in ORM table
     with get_session() as session:
         entry = session.query(WeeklyLog).filter_by(date=today, meal_type=meal_type, food_id=food_id).first()
         if entry:
             entry.food_name = new_name
-            entry.calories = new_calories
             entry.quantity = new_quantity
+            if not manual_override and per_unit is not None:
+                entry.calories = int(per_unit) * int(new_quantity)
+            else:
+                entry.calories = int(new_calories)
             session.commit()
 
 def update_food_entry_calories(profile_name, today, meal_type, food_id, new_calories):

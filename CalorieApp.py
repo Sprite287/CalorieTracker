@@ -5,7 +5,6 @@ import uuid  # For generating unique IDs
 import logging
 from dotenv import load_dotenv
 import db_handler_orm as db_handler
-import db_orm  # This will run create_all when the app starts
 
 load_dotenv()
 # ^ Loads .env for local secrets. On Render, secrets come from Render's Environment tab, not .env.
@@ -447,6 +446,13 @@ def edit_food_in_database():
         calories=calories,
         food_database=food_database
     )
+
+@app.route("/get_food_calories")
+def get_food_calories_api():
+    profile_name = get_current_profile()
+    food_name = request.args.get("food_name", "")
+    calories = db_handler.get_food_calories(profile_name, food_name)
+    return {"calories": calories}
 
 @app.route("/summary")
 def summary():
