@@ -15,6 +15,22 @@
         }
     </script>
 
+    <script>
+        // Set a cookie with the user's UTC date (YYYY-MM-DD) based on their local midnight
+        function setUserUtcDateCookie() {
+            const now = new Date();
+            // Get the user's local midnight as a Date object
+            const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            // Convert local midnight to UTC date string (YYYY-MM-DD)
+            const utcYear = localMidnight.getUTCFullYear();
+            const utcMonth = String(localMidnight.getUTCMonth() + 1).padStart(2, '0');
+            const utcDay = String(localMidnight.getUTCDate()).padStart(2, '0');
+            const utcDate = `${utcYear}-${utcMonth}-${utcDay}`;
+            document.cookie = `user_utc_date=${utcDate}; path=/; SameSite=Lax`;
+        }
+        setUserUtcDateCookie();
+    </script>
+
     <style>
         /* Inline styles for the dark mode toggle button */
         .dark-mode-toggle {

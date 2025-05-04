@@ -35,6 +35,47 @@ def get_previous_date(date_str):
     prev_date = date - datetime.timedelta(days=1)
     return prev_date.strftime("%Y-%m-%d")
 
+def get_user_today():
+    """Get the user's local date from the cookie, fallback to server date if missing/invalid."""
+    user_date = request.cookies.get("user_local_date")
+    if user_date:
+        try:
+            # Basic validation: YYYY-MM-DD
+            datetime.datetime.strptime(user_date, "%Y-%m-%d")
+            return user_date
+        except Exception:
+            pass
+    # Fallback to server date
+    return datetime.datetime.now().strftime("%Y-%m-%d")
+
+def is_valid_date(date_str, min_year=None, max_year=None):
+    """Validate date string is YYYY-MM-DD and within optional year bounds."""
+    try:
+        dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        year = dt.year
+        if min_year and year < min_year:
+            return False
+        if max_year and year > max_year:
+            return False
+        return True
+    except Exception:
+        return False
+
+def get_user_utc_today():
+    """Get the user's UTC date (YYYY-MM-DD) from the cookie, fallback to Central US time (Oklahoma)."""
+    user_utc_date = request.cookies.get("user_utc_date")
+    this_year = datetime.datetime.utcnow().year
+    if user_utc_date and is_valid_date(user_utc_date, min_year=this_year-1, max_year=this_year+1):
+        return user_utc_date
+    # Fallback: Central US time (Oklahoma)
+    try:
+        from zoneinfo import ZoneInfo
+        central_now = datetime.datetime.now(ZoneInfo("America/Chicago"))
+        return central_now.strftime("%Y-%m-%d")
+    except Exception:
+        # If zoneinfo is not available, fallback to UTC
+        return datetime.datetime.utcnow().strftime("%Y-%m-%d")
+
 # Routes
 @app.route("/")
 def index():
@@ -51,7 +92,7 @@ def home():
         return redirect(url_for("select_profile"))
     
     profile_data = db_handler.get_profile_data(profile_name)
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     db_handler.initialize_daily_log(profile_name, today)
 
     weekly_log = db_handler.get_weekly_log(profile_name)
@@ -211,7 +252,7 @@ def set_goal():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     db_handler.initialize_daily_log(profile_name, today)
     if request.method == "POST":
         try:
@@ -241,7 +282,7 @@ def add_food():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     db_handler.initialize_daily_log(profile_name, today)
     food_database = db_handler.get_food_database(profile_name)
     if request.method == "POST":
@@ -284,7 +325,7 @@ def delete_food_entry():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     food_id = request.form.get("food_id")
     meal_type = request.form.get("meal_type")
     if not food_id or not meal_type:
@@ -299,13 +340,20 @@ def edit_food_entry():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     if request.method == "POST":
         food_id = request.form.get("food_id")
         meal_type = request.form.get("meal_type")
         new_name = request.form.get("new_name")
         new_quantity = int(request.form.get("new_quantity", 1))
-        new_calories = int(request.form.get("new_calories", 0))
+        # Fetch per-unit calories from food database
+        food_database = db_handler.get_food_database(profile_name)
+        per_unit_calories = food_database.get(new_name)
+        if per_unit_calories is not None:
+            new_calories = per_unit_calories * new_quantity
+        else:
+            # fallback: use user input if not in database
+            new_calories = int(request.form.get("new_calories", 0))
         if not food_id or not meal_type:
             flash("Invalid request. Missing food ID or meal type.", "error")
             return redirect(url_for("summary"))
@@ -370,7 +418,7 @@ def summary():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     meals = db_handler.get_daily_log(profile_name, today)
     total_calories = db_handler.calculate_total_calories(profile_name, today)
     return render_template(
@@ -465,7 +513,7 @@ def reset_daily_calories():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     food_id = request.form.get("food_id")
     new_calories = request.form.get("new_calories")
     meal_type = request.form.get("meal_type")
@@ -485,7 +533,7 @@ def calorie_graph():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     db_handler.initialize_daily_log(profile_name, today)
     meal_calories = db_handler.get_meal_calories(profile_name, today)
     weekly_data = db_handler.get_weekly_data(profile_name)
@@ -505,6 +553,13 @@ def history():
     # Get filter parameters
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
+    # Validate dates
+    if start_date and not is_valid_date(start_date, min_year=2020, max_year=datetime.datetime.utcnow().year+1):
+        start_date = None
+        flash("Invalid start date. Showing all history.", "error")
+    if end_date and not is_valid_date(end_date, min_year=2020, max_year=datetime.datetime.utcnow().year+1):
+        end_date = None
+        flash("Invalid end date. Showing all history.", "error")
     page = int(request.args.get("page", 1))
     per_page = 5
     history_data = db_handler.get_history(profile_name, start_date, end_date)
@@ -526,7 +581,7 @@ def log_weight():
     profile_name = get_current_profile()
     if not profile_name:
         return redirect(url_for("select_profile"))
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = get_user_utc_today()
     weight = request.form.get("weight")
     try:
         if not weight or float(weight) <= 0:

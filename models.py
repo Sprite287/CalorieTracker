@@ -16,3 +16,4 @@ class WeeklyLog(Base):
     food_id = Column(String)
     food_name = Column(String)
     calories = Column(Integer)
+    quantity = Column(Integer, default=1)

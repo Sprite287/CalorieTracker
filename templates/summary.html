@@ -47,27 +47,30 @@
 <div class="stacked-table">
   {% set meal_order = ["breakfast", "lunch", "dinner", "snack"] %}
   {% for meal in meal_order %}
-    {% if meals.get(meal) %}
-      {% for food in meals[meal] %}
-        <div class="stacked-card">
-          <button class="stacked-card-header" type="button">
-            <span class="stacked-card-title">{{ food.name }}</span>
-            <span class="toggle-icon">&#9660;</span>
-          </button>
-          <div class="stacked-card-content">
-            <div><strong>Meal:</strong> {{ meal.capitalize() }}</div>
-            <div><strong>Quantity:</strong> {{ food.quantity or 1 }}</div>
-            <div><strong>Calories:</strong> {{ food.calories }}</div>
-            <div class="card-actions">
-              <form method="GET" action="{{ url_for('edit_food_entry') }}" class="inline-form">
-                <input type="hidden" name="food_id" value="{{ food.id }}">
-                <input type="hidden" name="meal_type" value="{{ meal }}">
-                <button type="submit" class="edit-btn small-btn" style="margin-top: 6px; margin-bottom: 2px; width: 60px;">Edit</button>
-              </form>
+    {% if meals.get(meal) and meals[meal]|length > 0 %}
+      <div class="stacked-card">
+        <button class="stacked-card-header" type="button">
+          <span class="stacked-card-title">{{ meal.capitalize() }}</span>
+          <span class="toggle-icon">&#9660;</span>
+        </button>
+        <div class="stacked-card-content">
+          {% for food in meals[meal] %}
+            <div style="margin-bottom: 10px;">
+              <div><strong>Food:</strong> {{ food.name }}</div>
+              <div><strong>Quantity:</strong> {{ food.quantity or 1 }}</div>
+              <div><strong>Calories:</strong> {{ food.calories }}</div>
+              <div class="card-actions">
+                <form method="GET" action="{{ url_for('edit_food_entry') }}" class="inline-form">
+                  <input type="hidden" name="food_id" value="{{ food.id }}">
+                  <input type="hidden" name="meal_type" value="{{ meal }}">
+                  <button type="submit" class="edit-btn small-btn" style="margin-top: 6px; margin-bottom: 2px; width: 60px;">Edit</button>
+                </form>
+              </div>
             </div>
-          </div>
+            {% if not loop.last %}<hr style="margin: 8px 0;">{% endif %}
+          {% endfor %}
         </div>
-      {% endfor %}
+      </div>
     {% endif %}
   {% endfor %}
 </div>

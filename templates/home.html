@@ -5,7 +5,28 @@
 {% block content %}
 <!-- Welcome Section -->
 <h1>Welcome, {{ profile_name }}!</h1>
-<p>Date: {{ today }}</p>
+<p id="pretty-date" style="text-align:center; font-size:1.13em; font-weight:600; color:#388e3c; margin-bottom:10px; margin-top:0.5em;">
+  <span id="pretty-date-text">{{ today }}</span>
+</p>
+<script>
+// Convert UTC date ({{ today }}) to user's local date and format it nicely
+(function() {
+  const utcDateStr = "{{ today }}";
+  const utcParts = utcDateStr.split("-");
+  if (utcParts.length === 3) {
+    // Create a Date object in UTC
+    const utcDate = new Date(Date.UTC(
+      parseInt(utcParts[0]),
+      parseInt(utcParts[1]) - 1,
+      parseInt(utcParts[2])
+    ));
+    // Format as: Saturday, May 3, 2025
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const localStr = utcDate.toLocaleDateString(undefined, options);
+    document.getElementById("pretty-date-text").textContent = localStr;
+  }
+})();
+</script>
 <p>Daily Calorie Goal: <strong>{{ daily_calories }}</strong></p>
 <p>Total Calories Consumed: <strong>{{ total_calories }}</strong></p>
 <p>Calories Left: <span style="color: green;">{{ calories_left if calories_left > 0 else 0 }}</span></p>

@@ -42,9 +42,9 @@ def get_daily_log(profile_name, today):
     return profile["weekly_log"][today]
 
 def add_food_to_log(profile_name, today, meal_type, food_id, food_name, calories, quantity):
-    # Add to ORM table (no quantity field)
+    # Add to ORM table (now with quantity)
     with get_session() as session:
-        entry = WeeklyLog(date=today, meal_type=meal_type, food_id=food_id, food_name=food_name, calories=calories)
+        entry = WeeklyLog(date=today, meal_type=meal_type, food_id=food_id, food_name=food_name, calories=calories, quantity=quantity)
         session.add(entry)
         session.commit()
     # Add to profile JSON (with quantity)
@@ -70,6 +70,7 @@ def delete_food_from_log(profile_name, today, meal_type, food_id):
         save_profile(profile_name, profile)
 
 def update_food_entry(profile_name, today, meal_type, food_id, new_name, new_calories, new_quantity):
+    # Update in profile JSON
     profile = get_profile_data(profile_name)
     food_db = profile.get("food_database", {})
     log = profile.get("weekly_log", {})
@@ -81,6 +82,14 @@ def update_food_entry(profile_name, today, meal_type, food_id, new_name, new_cal
                 f["calories"] = new_calories
                 f["manual_calories"] = True
         save_profile(profile_name, profile)
+    # Update in ORM table
+    with get_session() as session:
+        entry = session.query(WeeklyLog).filter_by(date=today, meal_type=meal_type, food_id=food_id).first()
+        if entry:
+            entry.food_name = new_name
+            entry.calories = new_calories
+            entry.quantity = new_quantity
+            session.commit()
 
 def update_food_entry_calories(profile_name, today, meal_type, food_id, new_calories):
     # Update in ORM table
