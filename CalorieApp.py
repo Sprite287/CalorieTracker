@@ -5,6 +5,7 @@ import uuid  # For generating unique IDs
 import logging
 from dotenv import load_dotenv
 import db_handler_orm as db_handler
+import db_orm  # This will run create_all when the app starts
 
 load_dotenv()
 # ^ Loads .env for local secrets. On Render, secrets come from Render's Environment tab, not .env.
