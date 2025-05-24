@@ -351,3 +351,7 @@ def calculate_total_calories(profile_name, today):
 def get_weights(profile_name):
     profile = get_profile_data(profile_name)
     return profile.get("weights", {})
+
+def validate_profile(profile_name):
+    profiles = get_profiles()
+    return profile_name in profiles

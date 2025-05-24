@@ -1,10 +1,12 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, send_file, jsonify
+import json
 import datetime
 import uuid  # For generating unique IDs
 import logging
 from dotenv import load_dotenv
 import db_handler_orm as db_handler
+from db_handler_orm import get_profiles, validate_profile, get_profile_data, save_profile, delete_profile
 
 load_dotenv()
 # ^ Loads .env for local secrets. On Render, secrets come from Render's Environment tab, not .env.
@@ -80,6 +82,28 @@ def get_user_utc_today():
     except Exception:
         # If zoneinfo is not available, fallback to UTC
         return datetime.datetime.utcnow().strftime("%Y-%m-%d")
+
+# --- Helper: Robust date handling ---
+def get_request_date():
+    date_str = request.args.get("date") or (request.json.get("date") if request.is_json else None)
+    if date_str:
+        try:
+            datetime.datetime.strptime(date_str, "%Y-%m-%d")
+            return date_str
+        except Exception:
+            pass
+    return datetime.date.today().isoformat()
+
+# --- Helper: Hardened profile creation ---
+def create_default_profile():
+    return {
+        "weekly_log": {},
+        "food_database": {},
+        "weight_goal": None,
+        "weights": {},
+        "daily_calories": {},
+        "uuid": str(uuid.uuid4())
+    }
 
 # Routes
 @app.route("/")
@@ -655,6 +679,267 @@ def weight_history():
 @app.route("/healthz")
 def healthz():
     return "OK", 200
+
+# --- Profile Management ---
+@app.route("/api/profiles", methods=["GET"])
+def api_get_profiles():
+    try:
+        profiles = get_profiles()
+        if not profiles:
+            return jsonify([])  # Return an empty list if no profiles exist
+        # Return a list of dicts with 'name' key for each profile
+        return jsonify([{"name": k} for k in profiles.keys()])
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch profiles: {str(e)}"}), 500
+
+@app.route("/api/profile", methods=["POST"])
+def api_create_profile():
+    data = request.get_json()
+    profile_name = data.get("profile_name")
+    if not profile_name:
+        return jsonify({"error": "Profile name required"}), 400
+    try:
+        save_profile(profile_name, {})
+        logging.info(f"Profile created: {profile_name}")
+        return jsonify({"success": True})
+    except Exception as e:
+        logging.error(f"Error creating profile: {str(e)}")
+        return jsonify({"error": f"Failed to create profile: {str(e)}"}), 500
+
+@app.route("/api/profile/<profile_name>", methods=["GET"])
+def get_profile_details(profile_name):
+    try:
+        profile_data = db_handler.get_profile_data(profile_name)
+        if not profile_data:
+            return jsonify({"error": "Profile not found"}), 404
+
+        # Convert from JSON strings to dicts
+        weights_raw = profile_data.get("weights", {})
+        weights = json.loads(weights_raw) if isinstance(weights_raw, str) else weights_raw
+        daily_calories_raw = profile_data.get("daily_calories", {})
+        daily_calories = json.loads(daily_calories_raw) if isinstance(daily_calories_raw, str) else daily_calories_raw
+        
+
+        return jsonify({
+            "name": profile_name,
+            "weight_goal": profile_data.get("weight_goal"),
+            "weights": weights,
+            "daily_calories": daily_calories,
+            "uuid": profile_data.get("uuid"),
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch profile '{profile_name}': {e}")
+        return jsonify({"error": "Internal server error", "detail": str(e)}), 500
+
+@app.route("/api/profile/<profile_name>", methods=["DELETE"])
+def api_delete_profile(profile_name):
+    try:
+        if not validate_profile(profile_name):
+            logging.warning(f"Attempt to delete non-existent profile: {profile_name}")
+            return jsonify({"error": "Profile does not exist"}), 404
+        delete_profile(profile_name)
+        logging.info(f"Profile deleted: {profile_name}")
+        return jsonify({"success": True})
+    except Exception as e:
+        logging.error(f"Error deleting profile: {str(e)}")
+        return jsonify({"error": f"Failed to delete profile: {str(e)}"}), 500
+
+@app.route("/api/home", methods=["GET"])
+def api_home():
+    profile_name = request.args.get("profile")
+    if not profile_name or not validate_profile(profile_name):
+        logging.warning(f"Invalid or missing profile: {profile_name}")
+        return jsonify({"error": "Invalid or missing profile."}), 400
+    try:
+        today = datetime.date.today().isoformat()
+        db_handler.initialize_daily_log(profile_name, today)
+        db_handler.synchronize_weekly_log(profile_name, today)
+        total_calories = db_handler.calculate_total_calories(profile_name, today)
+        daily_calories = db_handler.get_daily_calories(profile_name, today) or 2000
+        calories_left = daily_calories - total_calories
+        calories_over = max(0, total_calories - daily_calories)
+        weight_goal = db_handler.get_weight_goal(profile_name)
+        current_weight = db_handler.get_current_weight(profile_name, today)
+        previous_weight = db_handler.get_previous_weight(profile_name, today)
+        weight_change = None
+        if previous_weight is not None and current_weight is not None:
+            weight_change = round(current_weight - previous_weight, 2)
+        logging.info(f"Home data retrieved for profile: {profile_name}")
+        return jsonify({
+            "today": today,
+            "profile_name": profile_name,
+            "daily_calories": daily_calories,
+            "total_calories": total_calories,
+            "calories_left": calories_left,
+            "calories_over": calories_over,
+            "weight_goal": weight_goal,
+            "current_weight": current_weight,
+            "weight_change": weight_change
+        })
+    except Exception as e:
+        logging.error(f"Error fetching home data for profile {profile_name}: {str(e)}")
+        return jsonify({"error": f"Failed to fetch home data: {str(e)}"}), 500
+
+# --- /api/summary endpoint ---
+@app.route("/api/summary", methods=["GET"])
+def api_summary():
+    profile_name = request.args.get("profile")
+    if not profile_name or not validate_profile(profile_name):
+        return jsonify({"error": "No profile selected."}), 401
+    date = get_request_date()
+    meals = db_handler.get_daily_log(profile_name, date)
+    total_calories = db_handler.calculate_total_calories(profile_name, date)
+    return jsonify({
+        "date": date,
+        "meals": meals,
+        "total_calories": total_calories,
+        "profile_name": profile_name
+    })
+
+# --- /api/add_food endpoint (today only) ---
+@app.route("/api/add_food", methods=["POST"])
+def api_add_food():
+    profile_name = request.args.get("profile")
+    if not profile_name or not validate_profile(profile_name):
+        return jsonify({"error": "No profile selected."}), 401
+    today = datetime.date.today().isoformat()
+    data = request.get_json()
+    food_name = data.get("food_name", "").strip()
+    meal_type = data.get("meal_type")
+    calories = data.get("calories")
+    quantity = data.get("quantity", 1)
+    if not meal_type or meal_type not in ["breakfast", "lunch", "dinner", "snack"]:
+        return jsonify({"error": "Invalid meal type."}), 400
+    try:
+        quantity = int(quantity)
+        if quantity < 1:
+            raise ValueError
+    except Exception:
+        return jsonify({"error": "Quantity must be a positive integer."}), 400
+    if not food_name:
+        return jsonify({"error": "Food name is required."}), 400
+    try:
+        calories = int(calories)
+        if calories <= 0:
+            raise ValueError
+    except Exception:
+        return jsonify({"error": "Calories must be a positive integer."}), 400
+    food_id = str(uuid.uuid4())
+    db_handler.set_food_calories(profile_name, food_name, int(round(calories / quantity)))
+    db_handler.add_food_to_log(profile_name, today, meal_type, food_id, food_name, calories, quantity)
+    return jsonify({"success": True, "food_id": food_id})
+
+# --- /api/food_database endpoints ---
+@app.route("/api/food_database/<profile_name>", methods=["GET"])
+def api_get_food_database(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    db = db_handler.get_food_database(profile_name)
+    return jsonify(db)
+
+@app.route("/api/food_database/<profile_name>", methods=["POST"])
+def api_add_food_db(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    data = request.get_json()
+    name = data.get("food_name")
+    calories = data.get("calories")
+    db_handler.set_food_calories(profile_name, name, calories)
+    return jsonify({"success": True})
+
+@app.route("/api/food_database/<profile_name>/<food_name>", methods=["DELETE"])
+def api_delete_food(profile_name, food_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    db_handler.delete_food_from_database(profile_name, food_name)
+    return jsonify({"success": True})
+
+# --- History, Log, Weight, and Goal APIs ---
+
+@app.route("/api/history/<profile_name>", methods=["GET"])
+def api_get_history(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    start = request.args.get("start")
+    end = request.args.get("end")
+    history = db_handler.get_history(profile_name, start, end)
+    return jsonify(history)
+
+@app.route("/api/log/<profile_name>/<date>/<meal_type>/<food_id>", methods=["DELETE"])
+def api_delete_log_entry(profile_name, date, meal_type, food_id):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    db_handler.delete_food_from_log(profile_name, date, meal_type, food_id)
+    return jsonify({"success": True})
+
+@app.route("/api/log/<profile_name>/<date>/<meal_type>/<food_id>", methods=["PUT"])
+def api_update_log_entry(profile_name, date, meal_type, food_id):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    data = request.get_json()
+    new_name = data.get("name")
+    new_calories = data.get("calories")
+    new_quantity = data.get("quantity")
+    db_handler.update_food_entry(profile_name, date, meal_type, food_id, new_name, new_calories, new_quantity)
+    return jsonify({"success": True})
+
+@app.route("/api/weight/<profile_name>", methods=["POST"])
+def api_log_weight(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    data = request.get_json()
+    date = data.get("date")
+    weight = data.get("weight")
+    db_handler.log_weight(profile_name, date, weight)
+    return jsonify({"success": True})
+
+@app.route("/api/weight/<profile_name>", methods=["GET"])
+def api_get_weights(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    weights = db_handler.get_weights(profile_name)
+    return jsonify(weights)
+
+@app.route("/api/goal/<profile_name>", methods=["POST"])
+def api_set_goal(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    data = request.get_json()
+    weight_goal = data.get("weight_goal")
+    db_handler.set_weight_goal(profile_name, weight_goal)
+    return jsonify({"success": True})
+
+@app.route("/api/goal/<profile_name>", methods=["GET"])
+def api_get_goal(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    goal = db_handler.get_weight_goal(profile_name)
+    return jsonify({"weight_goal": goal})
+
+# --- Calorie Graph and Weight History APIs ---
+@app.route("/api/calorie_graph/<profile_name>", methods=["GET"])
+def api_calorie_graph(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    today = datetime.date.today().isoformat()
+    meal_calories = db_handler.get_meal_calories(profile_name, today)
+    weekly_data = db_handler.get_weekly_data(profile_name)
+    return jsonify({
+        "meal_calories": meal_calories,
+        "weekly_data": weekly_data
+    })
+
+@app.route("/api/weight_history/<profile_name>", methods=["GET"])
+def api_weight_history(profile_name):
+    if not validate_profile(profile_name):
+        return jsonify({"error": "Profile does not exist."}), 404
+    weights = db_handler.get_weights(profile_name)
+    weight_goal = db_handler.get_weight_goal(profile_name)
+    return jsonify({
+        "weights": weights,
+        "weight_goal": weight_goal
+    })
 
 @app.after_request
 def add_header(response):
