@@ -235,14 +235,35 @@ def select_profile():
 
 @app.route("/delete_profile/<profile_name>", methods=["POST"])
 def delete_profile(profile_name):
-    """Route to delete a profile."""
-    db_handler.delete_profile(profile_name)
-    flash(f"Profile '{profile_name}' has been deleted.", "success")
-    if "current_profile" in session and session["current_profile"] == profile_name:
-        session.pop("current_profile", None)
-    resp = make_response(redirect(url_for("select_profile")))
-    resp.set_cookie("profile_uuid", "", expires=0, secure=True, httponly=True)
-    return resp
+    """Route to delete a profile with improved error handling."""
+    try:
+        # Check if profile exists before attempting deletion
+        if not db_handler.validate_profile(profile_name):
+            flash(f"Profile '{profile_name}' does not exist.", "error")
+            return redirect(url_for("select_profile"))
+        
+        # Prevent deletion if it's the only profile (optional safety check)
+        profiles = db_handler.get_profiles()
+        if len(profiles) <= 1:
+            flash("Cannot delete the last remaining profile.", "error")
+            return redirect(url_for("select_profile"))
+        
+        # Proceed with deletion
+        db_handler.delete_profile(profile_name)
+        flash(f"Profile '{profile_name}' has been deleted successfully.", "success")
+        
+        # Clear session if deleting current profile
+        if "current_profile" in session and session["current_profile"] == profile_name:
+            session.pop("current_profile", None)
+        
+        resp = make_response(redirect(url_for("select_profile")))
+        resp.set_cookie("profile_uuid", "", expires=0, secure=True, httponly=True)
+        return resp
+        
+    except Exception as e:
+        logging.error(f"Error deleting profile '{profile_name}': {str(e)}")
+        flash(f"Failed to delete profile '{profile_name}'. Please try again.", "error")
+        return redirect(url_for("select_profile"))
 
 @app.route("/logout")
 def logout():
@@ -358,6 +379,22 @@ def add_food():
             return redirect(url_for("add_food"))
         except ValueError as e:
             flash(str(e), "error")
+            # Preserve valid form data, clear invalid fields
+            error_msg = str(e).lower()
+            form_data = {
+                'food_name': request.form.get("food_name", ""),
+                'food_name_input': request.form.get("food_name_input", ""),
+                'calories': "" if "calories" in error_msg else request.form.get("calories", ""),
+                'meal_type': request.form.get("meal_type", ""),
+                'quantity': "" if "quantity" in error_msg else request.form.get("quantity", "")
+            }
+            sorted_food_database = sorted(food_database.items())
+            return render_template(
+                "add_food.html",
+                meal_types=["breakfast", "lunch", "dinner", "snack"],
+                food_database=sorted_food_database,
+                form_data=form_data
+            )
     sorted_food_database = sorted(food_database.items())
     return render_template(
         "add_food.html",
@@ -738,9 +775,16 @@ def api_delete_profile(profile_name):
         if not validate_profile(profile_name):
             logging.warning(f"Attempt to delete non-existent profile: {profile_name}")
             return jsonify({"error": "Profile does not exist"}), 404
-        delete_profile(profile_name)
+        
+        # Safety check: prevent deletion of last profile
+        profiles = get_profiles()
+        if len(profiles) <= 1:
+            logging.warning(f"Attempt to delete last remaining profile: {profile_name}")
+            return jsonify({"error": "Cannot delete the last remaining profile"}), 400
+        
+        db_handler.delete_profile(profile_name)
         logging.info(f"Profile deleted: {profile_name}")
-        return jsonify({"success": True})
+        return jsonify({"success": True, "message": f"Profile '{profile_name}' deleted successfully"})
     except Exception as e:
         logging.error(f"Error deleting profile: {str(e)}")
         return jsonify({"error": f"Failed to delete profile: {str(e)}"}), 500

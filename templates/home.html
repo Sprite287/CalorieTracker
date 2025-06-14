@@ -39,21 +39,25 @@
 {% endif %}
 
 <!-- Progress Bar -->
-{% macro progress_bar_color(percent) %}
+{% macro progress_bar_color(percent, daily_goal) %}
     {%- set p = percent|float -%}
-    {%- if p <= 100 -%}
+    {%- set goal = daily_goal|int if daily_goal else 0 -%}
+    {%- if goal == 0 -%}
+        /* Gray for zero goal */
+        background: rgb(150, 150, 150) !important;
+    {%- elif p <= 100 -%}
         /* Green to Yellow */
-        background-color: rgb({{ (255 * (p / 100))|int }}, 207, 80);
+        background: rgb({{ (255 * (p / 100))|int }}, 207, 80) !important;
     {%- else -%}
         /* Red */
-        background-color: rgb(255, 80, 80);
+        background: rgb(255, 80, 80) !important;
     {%- endif -%}
 {% endmacro %}
 
 <div class="progress-bar-wrapper">
-    {% set percent = (total_calories / daily_calories * 100) if daily_calories else 0 %}
+    {% set percent = (total_calories / daily_calories * 100) if daily_calories and daily_calories > 0 else 0 %}
     <div class="progress-bar"
-         style="width: {{ percent }}%; {{ progress_bar_color(percent) }}">
+         style="width: {{ percent }}%; {{ progress_bar_color(percent, daily_calories) }}">
         {{ percent | round(1) }}%
     </div>
 </div>

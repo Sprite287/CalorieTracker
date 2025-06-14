@@ -8,6 +8,8 @@
 <!-- Display error messages if any -->
 {% if error_message %}
 <span class="error" id="add-food-error" role="alert">{{ error_message }}</span>
+{% else %}
+<span class="error" id="add-food-error" role="alert" style="display: none;"></span>
 {% endif %}
     
 <!-- Food Entry Form -->
@@ -17,23 +19,23 @@
     <select name="food_name" id="food_name" aria-describedby="add-food-error">
         <option value="">--Choose--</option>
         {% for name, calories in food_database %}
-            <option value="{{ name }}">{{ name }} ({{ calories }} cal)</option>
+            <option value="{{ name }}" {% if form_data and form_data.food_name == name %}selected{% endif %}>{{ name }} ({{ calories }} cal)</option>
         {% endfor %}
     </select>
     <span>or</span>
     <!-- New Food Input -->
     <label for="food_name_input">New food name:</label>
-    <input type="text" name="food_name_input" id="food_name_input" aria-describedby="add-food-error">
+    <input type="text" name="food_name_input" id="food_name_input" value="{{ form_data.food_name_input if form_data else '' }}" aria-describedby="add-food-error">
     <label for="calories">Calories:</label>
-    <input type="number" name="calories" id="calories" min="1" aria-describedby="add-food-error">
+    <input type="number" name="calories" id="calories" value="{{ form_data.calories if form_data else '' }}" min="1" aria-describedby="add-food-error">
     <label for="meal_type">Meal Type:</label>
     <select name="meal_type" id="meal_type" required aria-required="true" aria-describedby="add-food-error">
         {% for meal in meal_types %}
-            <option value="{{ meal }}">{{ meal.capitalize() }}</option>
+            <option value="{{ meal }}" {% if form_data and form_data.meal_type == meal %}selected{% endif %}>{{ meal.capitalize() }}</option>
         {% endfor %}
     </select>
     <label for="quantity">Quantity:</label>
-    <input type="number" name="quantity" id="quantity" value="1" min="1" aria-describedby="add-food-error">
+    <input type="number" name="quantity" id="quantity" value="{{ form_data.quantity if form_data else '1' }}" min="1" aria-describedby="add-food-error">
     <button type="submit" class="add-food-btn">Add Food</button>
 </form>
 <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>

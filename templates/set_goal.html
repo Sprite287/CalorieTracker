@@ -14,11 +14,13 @@
 {% endif %}
 <form method="POST" action="{{ url_for('set_goal') }}" class="goal-form" novalidate>
     <label for="daily_calories">Daily Calorie Goal:</label>
-    <input type="number" name="daily_calories" id="daily_calories" value="{{ current_goal }}" min="1" required aria-required="true" aria-describedby="goal-error">
+    <input type="number" name="daily_calories" id="daily_calories" value="{{ current_goal }}" min="0" required aria-required="true" aria-describedby="goal-error">
     <label for="weight_goal">Weight Goal (optional):</label>
-    <input type="number" name="weight_goal" id="weight_goal" value="{{ current_weight_goal or '' }}" step="0.1" min="1" aria-describedby="goal-error">
+    <input type="number" name="weight_goal" id="weight_goal" value="{{ current_weight_goal or '' }}" step="0.1" min="0" aria-describedby="goal-error">
     {% if error_message %}
       <span id="goal-error" class="error" role="alert">{{ error_message }}</span>
+    {% else %}
+      <span id="goal-error" class="error" role="alert" style="display: none;"></span>
     {% endif %}
     <button type="submit" class="add-food-btn">Set Goals</button>
 </form>

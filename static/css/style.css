@@ -21,7 +21,7 @@
 body {
     font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
-    padding: 0;
+    padding: 0 0 80px 0; /* Bottom padding to prevent overlap with fixed nav */
     background: #f4f7fa;
     color: #222;
     line-height: 1.7;
@@ -336,7 +336,6 @@ button.delete-btn:hover, .delete-btn:hover {
         max-width: 100% !important;
         padding: 10px !important;
         box-sizing: border-box;
-        margin-bottom: 60px !important; /* Prevents content from being hidden behind nav */
     }
     .navigation-buttons-vertical {
         width: 100% !important;
@@ -356,7 +355,7 @@ button.delete-btn:hover, .delete-btn:hover {
         box-sizing: border-box;
     }
     .weight-form {
-        margin-bottom: 70px !important;
+        margin-bottom: 20px !important;
     }
     .weight-form button[type="submit"] {
         margin-bottom: 10px !important;

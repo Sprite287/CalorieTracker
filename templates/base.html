@@ -38,7 +38,7 @@
     <script>
         // Check localStorage and apply dark mode before rendering
         if (localStorage.getItem("darkMode") === "true") {
-            document.documentElement.classList.add("dark-mode");
+            document.body.classList.add("dark-mode");
         }
     </script>
 
@@ -183,6 +183,81 @@
                 // Update the icon
                 darkModeIcon.textContent = isDarkMode ? "☀️" : "🌙";
             });
+        });
+
+        // Basic form validation enhancement
+        document.addEventListener("DOMContentLoaded", () => {
+            // Add real-time validation for required fields
+            const forms = document.querySelectorAll('form[novalidate]');
+            forms.forEach(form => {
+                // Add input event listeners for real-time feedback
+                const inputs = form.querySelectorAll('input[required], select[required]');
+                inputs.forEach(input => {
+                    input.addEventListener('blur', () => {
+                        validateField(input);
+                    });
+                    input.addEventListener('input', () => {
+                        const errorId = input.getAttribute('aria-describedby');
+                        const errorElement = errorId ? document.getElementById(errorId) : null;
+                        clearFieldError(input, errorElement);
+                    });
+                });
+
+                // Form submission validation
+                form.addEventListener('submit', (e) => {
+                    let isValid = true;
+                    let firstInvalidField = null;
+                    inputs.forEach(input => {
+                        if (!validateField(input)) {
+                            isValid = false;
+                            if (!firstInvalidField) {
+                                firstInvalidField = input;
+                            }
+                        }
+                    });
+                    if (!isValid) {
+                        e.preventDefault();
+                        // Focus on first invalid field for better UX
+                        if (firstInvalidField) {
+                            firstInvalidField.focus();
+                        }
+                    }
+                });
+            });
+
+            function validateField(field) {
+                const errorId = field.getAttribute('aria-describedby');
+                const errorElement = errorId ? document.getElementById(errorId) : null;
+                
+                if (!field.value.trim() && field.hasAttribute('required')) {
+                    showFieldError(field, errorElement, 'This field is required.');
+                    return false;
+                } else if (field.type === 'number' && field.value !== '' && parseFloat(field.value) < 0) {
+                    showFieldError(field, errorElement, 'Please enter a valid number (0 or higher).');
+                    return false;
+                } else if (field.type === 'number' && field.value !== '' && field.name !== 'daily_calories' && field.name !== 'weight_goal' && parseFloat(field.value) <= 0) {
+                    showFieldError(field, errorElement, 'Please enter a positive number.');
+                    return false;
+                } else {
+                    clearFieldError(field, errorElement);
+                    return true;
+                }
+            }
+
+            function showFieldError(field, errorElement, message) {
+                field.style.borderColor = '#ff4444';
+                if (errorElement) {
+                    errorElement.textContent = message;
+                    errorElement.style.display = 'block';
+                }
+            }
+
+            function clearFieldError(field, errorElement) {
+                field.style.borderColor = '';
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+            }
         });
     </script>
 </body>
