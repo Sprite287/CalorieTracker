@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        // Set a cookie with the user's local date (YYYY-MM-DD) at local midnight
+        function setUserLocalDateCookie() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const localDate = `${year}-${month}-${day}`;
+            document.cookie = `user_local_date=${localDate}; path=/; SameSite=Lax`;
+            return localDate;
+        }
+        setUserLocalDateCookie();
+
+        // Check if cookie is stale and reload if needed
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        const todayStr = setUserLocalDateCookie();
+        const cookieDate = getCookie('user_local_date');
+        if (cookieDate && cookieDate !== todayStr) {
+            // If cookie is stale, reload the page to update backend
+            window.location.reload();
+        }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Calorie Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://kit.fontawesome.com/043020f8f3.js" crossorigin="anonymous"></script>
+
+    <!-- Apply dark mode immediately to prevent white flash -->
+    <script>
+        // Check localStorage and apply dark mode before rendering
+        if (localStorage.getItem("darkMode") === "true") {
+            document.body.classList.add("dark-mode");
+        }
+    </script>
+
+    <style>
+        /* Inline styles for the dark mode toggle button */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            z-index: 1000; /* Ensure it appears above other elements */
+        }
+
+        .dark-mode-toggle:hover {
+            background-color: #45a049;
+        }
+
+        .dark-mode-toggle span {
+            font-size: 1.2rem;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #000;
+            color: #fff;
+            padding: 8px;
+            z-index: 1000;
+            transition: top 0.3s;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: var(--primary-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 0;
+            z-index: 1000;
+        }
+
+        .bottom-nav-link {
+            text-decoration: none;
+            color: #fff;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .bottom-nav-icon {
+            display: block;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- Dark Mode Toggle Button -->
+    <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle Dark Mode">
+        <span id="darkModeIcon">🌙</span>
+    </button>
+
+    <!-- Flash Messages (ARIA live region for accessibility) -->
+    <div id="flash-messages" aria-live="polite" aria-atomic="true" role="status">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul class="flash-list">
+              {% for category, message in messages %}
+                <li class="flash-message {{ category }}" tabindex="0">{{ message }}</li>
+                {% if category == 'success' and ('added' in message.lower() or 'updated' in message.lower()) %}
+                  <div class="success-checkmark"></div>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content Block -->
+    <div class="container" id="main-content" role="main">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav" aria-label="Primary">
+        <a href="{{ url_for('home') }}" class="bottom-nav-link{% if request.endpoint == 'home' %} active{% endif %}" aria-label="Home">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-house"></i></span>
+            <span class="bottom-nav-label">Home</span>
+        </a>
+        <a href="{{ url_for('add_food') }}" class="bottom-nav-link{% if request.endpoint == 'add_food' %} active{% endif %}" aria-label="Add Food">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-plus"></i></span>
+            <span class="bottom-nav-label">Add</span>
+        </a>
+        <a href="{{ url_for('summary') }}" class="bottom-nav-link{% if request.endpoint == 'summary' %} active{% endif %}" aria-label="Summary">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+            <span class="bottom-nav-label">Summary</span>
+        </a>
+        <a href="{{ url_for('history') }}" class="bottom-nav-link{% if request.endpoint == 'history' %} active{% endif %}" aria-label="History">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-calendar-days"></i></span>
+            <span class="bottom-nav-label">History</span>
+        </a>
+        <a href="{{ url_for('calorie_graph') }}" class="bottom-nav-link{% if request.endpoint == 'calorie_graph' %} active{% endif %}" aria-label="Calorie Graph">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-chart-bar"></i></span>
+            <span class="bottom-nav-label">Graph</span>
+        </a>
+        <a href="{{ url_for('weekly_average') }}" class="bottom-nav-link{% if request.endpoint == 'weekly_average' %} active{% endif %}" aria-label="Weekly Average">
+            <span class="bottom-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+            <span class="bottom-nav-label">Weekly</span>
+        </a>
+    </nav>
+
+    <!-- Dark Mode Toggle Script -->
+    <script>
+        // Handles dark mode toggle and icon update
+        document.addEventListener("DOMContentLoaded", () => {
+            const darkModeToggle = document.getElementById("darkModeToggle");
+            const darkModeIcon = document.getElementById("darkModeIcon");
+            const isDarkMode = localStorage.getItem("darkMode") === "true";
+
+            // Apply dark mode if saved in localStorage
+            if (isDarkMode) {
+                document.body.classList.add("dark-mode");
+                darkModeIcon.textContent = "☀️"; // Set icon to sun
+            }
+
+            // Toggle dark mode on button click
+            darkModeToggle.addEventListener("click", () => {
+                document.body.classList.toggle("dark-mode");
+                const isDarkMode = document.body.classList.contains("dark-mode");
+                localStorage.setItem("darkMode", isDarkMode); // Save preference
+
+                // Update the icon
+                darkModeIcon.textContent = isDarkMode ? "☀️" : "🌙";
+            });
+        });
+
+        // Basic form validation enhancement
+        document.addEventListener("DOMContentLoaded", () => {
+            // Add real-time validation for required fields
+            const forms = document.querySelectorAll('form[novalidate]');
+            forms.forEach(form => {
+                // Add input event listeners for real-time feedback
+                const inputs = form.querySelectorAll('input[required], select[required]');
+                inputs.forEach(input => {
+                    input.addEventListener('blur', () => {
+                        validateField(input);
+                    });
+                    input.addEventListener('input', () => {
+                        const errorId = input.getAttribute('aria-describedby');
+                        const errorElement = errorId ? document.getElementById(errorId) : null;
+                        clearFieldError(input, errorElement);
+                    });
+                });
+
+                // Form submission validation
+                form.addEventListener('submit', (e) => {
+                    let isValid = true;
+                    let firstInvalidField = null;
+                    inputs.forEach(input => {
+                        if (!validateField(input)) {
+                            isValid = false;
+                            if (!firstInvalidField) {
+                                firstInvalidField = input;
+                            }
+                        }
+                    });
+                    if (!isValid) {
+                        e.preventDefault();
+                        // Focus on first invalid field for better UX
+                        if (firstInvalidField) {
+                            firstInvalidField.focus();
+                        }
+                    } else {
+                        // Show loading state
+                        showFormLoading(form);
+                    }
+                });
+            });
+
+            function validateField(field) {
+                const errorId = field.getAttribute('aria-describedby');
+                const errorElement = errorId ? document.getElementById(errorId) : null;
+                
+                if (!field.value.trim() && field.hasAttribute('required')) {
+                    showFieldError(field, errorElement, 'This field is required.');
+                    return false;
+                } else if (field.type === 'number' && field.value !== '' && parseFloat(field.value) < 0) {
+                    showFieldError(field, errorElement, 'Please enter a valid number (0 or higher).');
+                    return false;
+                } else if (field.type === 'number' && field.value !== '' && field.name !== 'daily_calories' && field.name !== 'weight_goal' && parseFloat(field.value) <= 0) {
+                    showFieldError(field, errorElement, 'Please enter a positive number.');
+                    return false;
+                } else {
+                    clearFieldError(field, errorElement);
+                    return true;
+                }
+            }
+
+            function showFieldError(field, errorElement, message) {
+                field.style.borderColor = '#ff4444';
+                if (errorElement) {
+                    errorElement.textContent = message;
+                    errorElement.style.display = 'block';
+                }
+            }
+
+            function clearFieldError(field, errorElement) {
+                field.style.borderColor = '';
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+            }
+            
+            function showFormLoading(form) {
+                // Find submit button(s) in the form
+                const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+                submitButtons.forEach(button => {
+                    // Store original text
+                    button.dataset.originalText = button.textContent || button.value;
+                    button.disabled = true;
+                    
+                    // Add loading spinner
+                    if (button.tagName === 'BUTTON') {
+                        button.innerHTML = '<span class="loading-spinner"></span> Loading...';
+                    } else {
+                        button.value = 'Loading...';
+                    }
+                    button.classList.add('loading');
+                });
+                
+                // Disable all form inputs
+                const formInputs = form.querySelectorAll('input, select, textarea, button');
+                formInputs.forEach(input => {
+                    input.disabled = true;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

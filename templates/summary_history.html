@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Summary History{% endblock %}
+
+{% block content %}
+<h1>Summary History</h1>
+
+<!-- Date Filter Form -->
+<form method="GET" action="{{ url_for('history') }}" class="filter-form" novalidate>
+    <label for="start_date">Start Date:</label>
+    <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}">
+    <label for="end_date">End Date:</label>
+    <input type="date" id="end_date" name="end_date" value="{{ end_date or '' }}">
+    <button type="submit" class="filter-button">Filter</button>
+</form>
+
+<!-- Collapsible History Entries -->
+<div class="history-collapsible-list">
+    {% for date, entry in history.items() %}
+    <div class="history-collapsible-entry">
+        <button class="collapsible">
+            <span class="history-date">{{ date }}</span>
+            <span class="history-calories">Calories: <strong>{{ entry.total_calories }}</strong></span>
+            <span class="history-goal">Goal: <strong>{{ entry.daily_calories }}</strong></span>
+            <span class="history-overlimit {% if entry.over_limit %}over-limit{% else %}under-limit{% endif %}">
+                {% if entry.over_limit %}
+                    Over Limit
+                {% else %}
+                    Within Limit
+                {% endif %}
+            </span>
+            <span class="toggle-icon">▼</span>
+        </button>
+        <div class="collapsible-content">
+            <div class="history-meals">
+                {% for meal, foods in entry.meals.items() %}
+                <div class="meal-block">
+                    <strong>{{ meal.capitalize() }}:</strong>
+                    {% if foods %}
+                        <ul>
+                        {% for food in foods %}
+                            <li>{{ food.name }} (x{{ food.quantity }}) - {{ food.calories }} cal</li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <span class="no-meal">No entry</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination Controls -->
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="{{ url_for('history', page=page-1, start_date=start_date, end_date=end_date) }}" class="pagination-button">Previous</a>
+    {% endif %}
+    <span class="pagination-info">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="{{ url_for('history', page=page+1, start_date=start_date, end_date=end_date) }}" class="pagination-button">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const collapsibles = document.querySelectorAll(".collapsible");
+        collapsibles.forEach(button => {
+            const icon = button.querySelector('.toggle-icon');
+            if (icon) {
+                icon.innerHTML = '▼';
+                icon.style.transform = 'rotate(0deg)';
+            }
+            button.addEventListener("click", function () {
+                // Accordion: close all others
+                collapsibles.forEach(otherBtn => {
+                    if (otherBtn !== this) {
+                        otherBtn.classList.remove("active");
+                        const otherContent = otherBtn.nextElementSibling;
+                        if (otherContent) {
+                            otherContent.style.maxHeight = null;
+                            const otherIcon = otherBtn.querySelector('.toggle-icon');
+                            if (otherIcon) {
+                                otherIcon.innerHTML = '▼';
+                                otherIcon.style.transform = 'rotate(0deg)';
+                            }
+                        }
+                    }
+                });
+                // Toggle current
+                this.classList.toggle("active");
+                const content = this.nextElementSibling;
+                const icon = this.querySelector('.toggle-icon');
+                if (content.style.maxHeight) {
+                    content.style.maxHeight = null;
+                    if (icon) {
+                        icon.innerHTML = '▼';
+                        icon.style.transform = 'rotate(0deg)';
+                    }
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                    if (icon) {
+                        icon.innerHTML = '▲';
+                        icon.style.transform = 'rotate(0deg)';
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

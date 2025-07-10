@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Weight History{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 750px; margin: 32px auto;">
+    <h1 style="text-align:center; margin-bottom: 0.5em;">Weight History</h1>
+    <p style="text-align:center; color: #666; margin-bottom: 2em;">
+        Track your weight changes over time. The chart below shows your logged weights.
+    </p>
+    <ul style="text-align:center; list-style:none; padding:0; margin-bottom:1em; color:#444;">
+        <li><span style="color:#ff4d4d;">●</span> Red: Weight gain</li>
+        <li><span style="color:#4caf50;">●</span> Green: Weight loss</li>
+        <li><span style="color:#888;">●</span> Gray: No change/first entry</li>
+        <li><span style="text-shadow:0 0 8px #888;">●</span> Glow: Latest entry</li>
+    </ul>
+
+    {% if weights %}
+        <div style="max-width: 700px; margin: 0 auto 32px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 24px; overflow-x: auto;">
+            <canvas id="weightHistoryChart" style="width:100%; height:320px; min-width:320px;" aria-label="Weight history scatter plot" role="img"></canvas>
+        </div>
+        <table class="summary-table" style="margin: 0 auto 32px auto; width: 100%; max-width: 600px;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for date, weight in weights %}
+                <tr>
+                    <td>{{ date }}</td>
+                    <td>{{ weight }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="text-align:center;">No weight history available.</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('log_weight') }}" class="weight-form" novalidate>
+        <label for="weight">Log Weight:</label>
+        <input type="number" name="weight" id="weight" step="0.1" min="1" required aria-required="true" aria-describedby="weight-error">
+        {% if get_flashed_messages(category_filter=['error']) %}
+          <span id="weight-error" class="error" role="alert">{{ get_flashed_messages(category_filter=['error'])[0] }}</span>
+        {% endif %}
+        <button type="submit">Log</button>
+    </form>
+
+    <div style="text-align:center;">
+        <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{% if weights and weights|length > 0 %}
+    const weightData = {{ weights|tojson }};
+    const weightGoal = {{ weight_goal if weight_goal is not none else 'null' }};
+    const ctx = document.getElementById('weightHistoryChart').getContext('2d');
+
+    // Prepare data points with color based on weight change
+    let scatterData = [];
+    let prevWeight = null;
+    for (let i = 0; i < weightData.length; i++) {
+        const [date, weight] = weightData[i];
+        let pointColor = '#888'; // Neutral for first point or no change
+        if (prevWeight !== null) {
+            if (weight > prevWeight) {
+                pointColor = '#ff4d4d'; // Red for gain
+            } else if (weight < prevWeight) {
+                pointColor = '#4caf50'; // Green for loss
+            }
+        }
+        scatterData.push({
+            x: date,
+            y: weight,
+            backgroundColor: pointColor,
+            borderColor: pointColor,
+            isLatest: i === weightData.length - 1 // Mark the latest entry
+        });
+        prevWeight = weight;
+    }
+
+    // Prepare goal line data if weight goal is set
+    let goalLine = [];
+    if (weightGoal !== null) {
+        goalLine = weightData.map(([date, _]) => ({x: date, y: weightGoal}));
+    }
+
+    // Chart.js plugin to add glow to the latest point
+    const glowPlugin = {
+        id: 'glowPlugin',
+        afterDatasetsDraw(chart, args, options) {
+            const {ctx, data} = chart;
+            const dataset = data.datasets[0];
+            dataset.data.forEach((point, i) => {
+                if (point.isLatest) {
+                    const meta = chart.getDatasetMeta(0);
+                    const pt = meta.data[i];
+                    if (pt) {
+                        ctx.save();
+                        ctx.shadowColor = point.backgroundColor;
+                        ctx.shadowBlur = 24;
+                        ctx.globalAlpha = 0.8;
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, 14, 0, 2 * Math.PI);
+                        ctx.fillStyle = point.backgroundColor;
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+            });
+        }
+    };
+
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Weight',
+                    data: scatterData,
+                    showLine: true,
+                    tension: 0.2,
+                    pointRadius: ctx => ctx.raw && ctx.raw.isLatest ? 12 : 6,
+                    pointHoverRadius: ctx => ctx.raw && ctx.raw.isLatest ? 16 : 8,
+                    parsing: false,
+                    pointStyle: 'circle',
+                    backgroundColor: ctx => ctx.raw && ctx.raw.backgroundColor ? ctx.raw.backgroundColor : '#888',
+                    borderColor: ctx => ctx.raw && ctx.raw.borderColor ? ctx.raw.borderColor : '#888',
+                    borderWidth: ctx => ctx.raw && ctx.raw.isLatest ? 3 : 1,
+                    order: 1,
+                },
+                ...(weightGoal !== null ? [{
+                    label: 'Weight Goal',
+                    data: goalLine,
+                    type: 'line',
+                    borderColor: '#4caf50',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                    borderDash: [8, 6],
+                    order: 0,
+                }] : [])
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const idx = context.dataIndex;
+                            const d = scatterData[idx];
+                            let change = '';
+                            if (idx > 0) {
+                                if (d.y > scatterData[idx-1].y) change = ' (gain)';
+                                else if (d.y < scatterData[idx-1].y) change = ' (loss)';
+                                else change = ' (no change)';
+                            }
+                            if (d.isLatest) change += ' [Latest]';
+                            return `Weight: ${d.y}${change}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'category',
+                    title: { display: true, text: 'Date' },
+                    ticks: { autoSkip: true, maxTicksLimit: 10 }
+                },
+                y: {
+                    title: { display: true, text: 'Weight' }
+                }
+            }
+        },
+        plugins: [glowPlugin]
+    });
+{% endif %}
+</script>
+{% endblock %}

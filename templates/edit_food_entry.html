@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Food Entry{% endblock %}
+
+{% block content %}
+<h1>Edit Food Entry</h1>
+<form method="POST" action="{{ url_for('edit_food_entry') }}" novalidate>
+    <input type="hidden" name="food_id" value="{{ food_entry.id }}">
+    <input type="hidden" name="meal_type" value="{{ meal_type }}">
+    <label for="new_name">Food Name:</label>
+    <input type="text" name="new_name" id="new_name" value="{{ food_entry.name }}" required aria-required="true" aria-describedby="edit-food-error">
+    <label for="new_quantity">Quantity:</label>
+    <input type="number" name="new_quantity" id="new_quantity" min="1" value="{{ food_entry.quantity or 1 }}" required aria-required="true" aria-describedby="edit-food-error">
+    <label for="new_calories">Calories (auto-calculated, can override):</label>
+    <input type="number" name="new_calories" id="new_calories" min="1" value="{{ food_entry.calories }}" required aria-required="true" aria-describedby="edit-food-error">
+    <small id="calorie-hint" style="display:block; margin-bottom:10px; color:#888;">Calories will auto-update when you change quantity or food, but you can override it.</small>
+    {% if get_flashed_messages(category_filter=['error']) %}
+      <span id="edit-food-error" class="error" role="alert">{{ get_flashed_messages(category_filter=['error'])[0] }}</span>
+    {% endif %}
+    <button type="submit" class="add-food-btn" style="margin-top: 12px;">Save Changes</button>
+</form>
+
+<script>
+// Auto-update calories field when quantity or food name changes
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInput = document.getElementById('new_quantity');
+    const foodNameInput = document.getElementById('new_name');
+    const caloriesInput = document.getElementById('new_calories');
+    let manualOverride = false;
+    caloriesInput.addEventListener('input', function() {
+        manualOverride = true;
+    });
+    function fetchCalories(foodName, quantity) {
+        fetch(`/get_food_calories?food_name=${encodeURIComponent(foodName)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.calories !== null && !manualOverride) {
+                    caloriesInput.value = data.calories * quantity;
+                }
+            });
+    }
+    quantityInput.addEventListener('input', function() {
+        manualOverride = false;
+        fetchCalories(foodNameInput.value, parseInt(quantityInput.value) || 1);
+    });
+    foodNameInput.addEventListener('input', function() {
+        manualOverride = false;
+        fetchCalories(foodNameInput.value, parseInt(quantityInput.value) || 1);
+    });
+});
+</script>
+
+<div style="display: flex; gap: 16px; justify-content: center; align-items: center; margin-top: 24px; flex-wrap: wrap;">
+    <form method="POST" action="{{ url_for('delete_food_entry') }}" style="margin: 0; padding: 0;">
+        <input type="hidden" name="food_id" value="{{ food_entry.id }}">
+        <input type="hidden" name="meal_type" value="{{ meal_type }}">
+        <button type="submit" class="delete-btn small-btn" style="height: 38px; margin: 0; display: flex; align-items: center; justify-content: center;">Delete Entry</button>
+    </form>
+</div>
+
+<a href="{{ url_for('summary') }}" class="back-button" style="width: 180px; font-size: 1rem; padding: 10px 0; margin-top: 24px;">Back to Summary</a>
+{% endblock %}

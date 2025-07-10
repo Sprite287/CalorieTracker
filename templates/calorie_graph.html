@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<h1>Welcome, {{ profile_name }}!</h1>
+<h1>Calorie Graphs for {{ today }} ({{ profile_name }})</h1>
+
+<!-- Tabs for toggling between graphs -->
+<div class="tabs">
+    <button class="tab-button active" onclick="showGraph('dailyGraph', this)" title="View today's calorie breakdown as a pie chart">Daily Pie Chart</button>
+    <button class="tab-button" onclick="showGraph('weeklyGraph', this)" title="View weekly calorie trends as a line graph">Weekly Line Graph</button>
+</div>
+
+<!-- Daily Pie Chart -->
+<div id="dailyGraph" class="graph-container" style="display: block;">
+    {% if not meal_calories %}
+    <div class="no-data">
+        <p>No data available for today's meals. Please log your meals to view the calorie graph.</p>
+        <a href="/add_food" class="add-food-link">Log Meals</a>
+    </div>
+    {% else %}
+    <div style="max-width: 600px; margin: 0 auto;">
+        <canvas id="calorieChart"></canvas>
+    </div>
+    <p><strong>Total Calories:</strong> {{ meal_calories.values() | sum }}</p>
+    {% endif %}
+</div>
+
+<!-- Weekly Line Graph -->
+<div id="weeklyGraph" class="graph-container" style="display: none;">
+    <h2>Weekly Calorie Trends</h2>
+    <div style="max-width: 800px; margin: 20px auto;">
+        <canvas id="weeklyAverageChart"></canvas>
+    </div>
+</div>
+
+<a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // JavaScript to toggle between the graphs
+    function showGraph(graphId, button) {
+        const graphs = document.querySelectorAll('.graph-container');
+        graphs.forEach(graph => graph.style.display = 'none'); // Hide all graphs
+        document.getElementById(graphId).style.display = 'block'; // Show the selected graph
+
+        // Update active state for tabs
+        const buttons = document.querySelectorAll('.tab-button');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+    }
+
+    {% if meal_calories %}
+    const mealCalories = {{ meal_calories | tojson }};
+    const ctx = document.getElementById('calorieChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(mealCalories), // Meal types (e.g., Breakfast, Lunch)
+            datasets: [{
+                data: Object.values(mealCalories), // Calorie values
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4CAF50'],
+                hoverBackgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4CAF50']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top', // Position the legend at the top
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(tooltipItem) {
+                            const label = tooltipItem.label || '';
+                            const value = tooltipItem.raw || 0;
+                            return `${label}: ${value} calories`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if weekly_data %}
+    const weeklyData = {{ weekly_data | tojson }};
+    const weeklyCtx = document.getElementById('weeklyAverageChart').getContext('2d');
+    new Chart(weeklyCtx, {
+        type: 'line',
+        data: {
+            labels: weeklyData.map(data => data.date), // Dates
+            datasets: [{
+                label: 'Total Calories',
+                data: weeklyData.map(data => data.total_calories), // Total calories for each day
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4 // Smooth curve
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(tooltipItem) {
+                            return `Calories: ${tooltipItem.raw}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Calories'
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

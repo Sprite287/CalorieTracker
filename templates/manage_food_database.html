@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Food Database{% endblock %}
+
+{% block content %}
+<h1>Manage Food Database</h1>
+
+<!-- Display error and success messages -->
+{% if error_message %}
+    <p class="error">{{ error_message }}</p>
+{% endif %}
+{% if success_message %}
+    <p class="success">{{ success_message }}</p>
+{% endif %}
+
+<div class="food-db-flex">
+    <!-- Reset Food Calories Section -->
+    <form method="POST" action="{{ url_for('reset_food_calories') }}" class="food-db-form" novalidate>
+        <h3>Reset Food Calories</h3>
+        <label for="reset_food_name">Select Food:</label>
+        <select id="reset_food_name" name="food_name" required aria-required="true" aria-describedby="db-error">
+            <option value="" disabled selected>-- Select Food --</option>
+            {% if food_database %}
+                {% for food_name, calories in food_database %}
+                    <option value="{{ food_name }}">{{ food_name }} ({{ calories }} cal)</option>
+                {% endfor %}
+            {% else %}
+                <option disabled>No foods in database</option>
+            {% endif %}
+        </select>
+        <label for="calories">New Calorie Value:</label>
+        <input type="number" id="calories" name="calories" placeholder="Enter new calorie value" min="1" required aria-required="true" aria-describedby="db-error">
+        {% if error_message %}
+          <span id="db-error" class="error" role="alert">{{ error_message }}</span>
+        {% endif %}
+        <button type="submit" class="add-food-btn food-db-btn">Reset Calories</button>
+    </form>
+
+    <!-- Delete Food Section -->
+    <form method="POST" action="{{ url_for('delete_food_from_database') }}" class="food-db-form" novalidate onsubmit="return confirm('Are you sure you want to delete this food item? This cannot be undone.');">
+        <h3>Delete Food</h3>
+        <label for="delete_food_name">Select Food:</label>
+        <select id="delete_food_name" name="food_name" required aria-required="true" aria-describedby="delete-food-error">
+            <option value="" disabled selected>-- Select Food --</option>
+            {% if food_database %}
+                {% for food_name, calories in food_database %}
+                    <option value="{{ food_name }}">{{ food_name }} ({{ calories }} cal)</option>
+                {% endfor %}
+            {% else %}
+                <option disabled>No foods in database</option>
+            {% endif %}
+        </select>
+        <span class="error" id="delete-food-error" role="alert" style="display: none;">Please select a food to delete.</span>
+        <button type="submit" class="delete-button food-db-btn">Delete Food</button>
+    </form>
+</div>
+
+<div class="food-db-edit-section">
+    <h3>Edit Food in Database</h3>
+    <form method="GET" action="{{ url_for('edit_food_in_database') }}" class="food-db-edit-form">
+        <label for="edit_food_name">Select Food to Edit:</label>
+        <select id="edit_food_name" name="food_name" required>
+            <option value="" disabled selected>-- Select Food --</option>
+            {% if food_database %}
+                {% for food_name, calories in food_database %}
+                    <option value="{{ food_name }}">{{ food_name }} ({{ calories }} cal)</option>
+                {% endfor %}
+            {% else %}
+                <option disabled>No foods in database</option>
+            {% endif %}
+        </select>
+        <button type="submit" class="add-food-btn food-db-btn">Edit</button>
+    </form>
+</div>
+
+<div style="text-align:center; margin-top:2em;">
+    <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Average{% endblock %}
+
+{% block content %}
+<h1>Weekly Summary</h1>
+    
+<!-- Weekly Average Section -->
+<div class="summary-section">
+    <p><strong>Weekly Average Calorie Intake:</strong> <span class="highlight">{{ weekly_average }}</span> calories/day</p>
+    <p><strong>Highest Daily Calorie Intake:</strong> <span class="highlight">{{ highest_calories }}</span> calories</p>
+    <p><strong>Lowest Daily Calorie Intake:</strong> <span class="highlight">{{ lowest_calories }}</span> calories</p>
+</div>
+
+{% if weight_change is not none %}
+    <div class="summary-section">
+        <p>
+            <strong>Weight Change:</strong>
+            <span style="color: {{ 'green' if weight_change < 0 else 'red' }};">
+                {% if weight_change < 0 %}
+                    &#8595; {{ weight_change|abs }} (Lost)
+                {% elif weight_change > 0 %}
+                    &#8593; {{ weight_change }} (Gained)
+                {% else %}
+                    No Change
+                {% endif %}
+            </span>
+        </p>
+    </div>
+{% endif %}
+
+<!-- Food Summary Section -->
+<div class="food-summary">
+    <h2>Most Eaten Foods</h2>
+    {% if most_eaten %}
+        <ul>
+            {% for food, count in most_eaten.items() %}
+                <li><strong>{{ food }}</strong>: {{ count }} times</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No food data available for this week.</p>
+    {% endif %}
+
+    <h2>Least Eaten Foods</h2>
+    {% if least_eaten %}
+        <ul>
+            {% for food, count in least_eaten.items() %}
+                <li><strong>{{ food }}</strong>: {{ count }} times</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No food data available for this week.</p>
+    {% endif %}
+</div>
+
+<a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+<!-- Collapsible card JS for consistency (no stacked cards here, but keep for future extensibility) -->
+<script>
+// No stacked cards in this template, but if you add them, the script from summary.html will work.
+</script>
+{% endblock %}

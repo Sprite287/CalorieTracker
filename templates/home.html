@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<h1>Welcome, {{ profile_name }}!</h1>
+<p id="pretty-date" style="text-align:center; font-size:1.13em; font-weight:600; color:#388e3c; margin-bottom:10px; margin-top:0.5em;">
+  <span id="pretty-date-text">{{ today }}</span>
+</p>
+<script>
+// Convert local date ({{ today }}) to a pretty string in the user's local timezone
+(function() {
+  const dateStr = "{{ today }}";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    // Create a Date object in local time
+    const localDate = new Date(
+      parseInt(parts[0]),
+      parseInt(parts[1]) - 1,
+      parseInt(parts[2])
+    );
+    // Format as: Saturday, May 3, 2025
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const pretty = localDate.toLocaleDateString(undefined, options);
+    document.getElementById("pretty-date-text").textContent = pretty;
+  }
+})();
+</script>
+{% if calories_over > 0 %}
+    <p class="over-limit-message">Over limit by <strong>{{ calories_over }}</strong> calories</p>
+{% endif %}
+
+{% if date_warning %}
+  <div class="flash-message error" role="alert" tabindex="0">{{ date_warning }}</div>
+{% endif %}
+
+<!-- Progress Ring -->
+{% set percent = (total_calories / daily_calories * 100) if daily_calories and daily_calories > 0 else 0 %}
+{% set ring_color = 'gray' if daily_calories == 0 else ('green' if percent <= 80 else ('yellow' if percent <= 100 else 'red')) %}
+
+<div class="progress-ring-container">
+    <svg class="progress-ring" viewBox="0 0 200 200">
+        <!-- Background circle -->
+        <circle cx="100" cy="100" r="85" fill="none" stroke="#e0e0e0" stroke-width="12"></circle>
+        <!-- Progress circle -->
+        <circle class="progress-ring-circle {{ ring_color }}-glow" 
+                cx="100" cy="100" r="85" 
+                fill="none" 
+                stroke-width="12"
+                stroke-dasharray="534.07" 
+                stroke-dashoffset="{{ 534.07 * (1 - (percent / 100 if percent <= 100 else 1)) }}"
+                {% if percent > 90 and percent <= 100 %}data-pulse="true"{% endif %}
+                transform="rotate(-90 100 100)">
+        </circle>
+    </svg>
+    <div class="progress-ring-content">
+        <div class="calorie-count">{{ total_calories }}</div>
+        <div class="calorie-divider">/</div>
+        <div class="calorie-goal">{{ daily_calories }}</div>
+        <div class="calorie-label">calories</div>
+        <div class="calorie-percent">{{ percent|round(1) }}%</div>
+        
+        {% if current_weight %}
+        <div class="weight-display">
+            <span class="weight-value">{{ current_weight }} lbs</span>
+            {% if arrow %}
+            <span class="weight-change" style="color: {{ arrow_color }};">
+                {{ arrow|safe }} {{ weight_change|abs }}
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Weekly Trend -->
+{% if week_trend %}
+<div class="weekly-trend">
+    <h3>Weekly Average</h3>
+    <div class="trend-display">
+        <span class="trend-arrow {{ 'trend-down' if week_trend == '↓' else ('trend-up' if week_trend == '↑' else 'trend-stable') }}">
+            {{ week_trend }}
+        </span>
+        <div class="trend-details">
+            <span class="trend-label">This week:</span> <span class="trend-value">{{ current_week_avg }} cal/day</span><br>
+            <span class="trend-label">Last week:</span> <span class="trend-value">{{ last_week_avg }} cal/day</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Weight Goal -->
+{% if weight_goal %}
+    <p style="margin-top: 20px;">Weight Goal: {{ weight_goal }} lbs</p>
+{% endif %}
+
+<!-- Quick Actions -->
+<div class="quick-actions">
+    <a href="{{ url_for('add_food') }}" class="primary-action-button">Add Food</a>
+    <a href="{{ url_for('set_goal') }}" class="secondary-action-button">Set Goal</a>
+    <a href="{{ url_for('manage_food_database') }}" class="secondary-action-button">Manage Food Database</a>
+</div>
+
+<a href="{{ url_for('select_profile') }}" class="back-button" style="margin-top: 18px;">Return to Profile Select</a>
+
+<!-- Log Weight Form -->
+<form method="POST" action="{{ url_for('log_weight') }}" class="weight-form" novalidate>
+    <label for="weight">Log Weight:</label>
+    <input type="number" name="weight" id="weight" step="0.1" min="1" required aria-required="true" aria-describedby="weight-error" inputmode="decimal">
+    {% if get_flashed_messages(category_filter=['error']) %}
+      <span id="weight-error" class="error" role="alert">{{ get_flashed_messages(category_filter=['error'])[0] }}</span>
+    {% endif %}
+    <button type="submit">Log</button>
+</form>
+{% endblock %}

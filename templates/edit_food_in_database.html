@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Food in Database{% endblock %}
+
+{% block content %}
+<h1>Edit Food in Database</h1>
+<form method="POST" action="{{ url_for('edit_food_in_database') }}" novalidate>
+    <input type="hidden" name="food_name" value="{{ food_name }}">
+    <label for="new_name">Food Name:</label>
+    <input type="text" name="new_name" id="new_name" value="{{ food_name }}" required aria-required="true" aria-describedby="edit-db-food-error">
+    <label for="new_calories">Calories:</label>
+    <input type="number" name="new_calories" id="new_calories" min="1" value="{{ calories }}" required aria-required="true" aria-describedby="edit-db-food-error">
+    {% if get_flashed_messages(category_filter=['error']) %}
+      <span id="edit-db-food-error" class="error" role="alert">{{ get_flashed_messages(category_filter=['error'])[0] }}</span>
+    {% endif %}
+    <button type="submit" class="add-food-btn" style="margin-top: 12px;">Save Changes</button>
+</form>
+<a href="{{ url_for('manage_food_database') }}" class="back-button" style="width: 180px; font-size: 1rem; padding: 10px 0; margin-top: 24px;">Back to Database</a>
+{% endblock %}

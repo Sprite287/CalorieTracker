@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Summary{% endblock %}
+
+{% block content %}
+<!-- Daily Summary Section -->
+<h1>Summary for {{ today }}</h1>
+
+{% set has_any_meals = meals.get("breakfast") or meals.get("lunch") or meals.get("dinner") or meals.get("snack") %}
+
+{% if not has_any_meals %}
+<div class="empty-state">
+    <p class="empty-state-icon">🍽️</p>
+    <h2>No Meals Logged Today</h2>
+    <p>Start tracking your calories by adding your first meal!</p>
+    <a href="{{ url_for('add_food') }}" class="primary-action-button" style="margin: 20px auto; max-width: 300px;">Add Food</a>
+</div>
+{% else %}
+<!-- Meals Table (Desktop/Tablet) -->
+<div class="summary-table-wrapper">
+  <div class="summary-table-responsive">
+    <table class="summary-table">
+        <thead>
+            <tr>
+                <th class="meal-col">Meal</th>
+                <th>Food</th>
+                <th>Quantity</th>
+                <th>Calories</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set meal_order = ["breakfast", "lunch", "dinner", "snack"] %}
+            {% for meal in meal_order %}
+                {% if meals.get(meal) %}
+                    {% for food in meals[meal] %}
+                        <tr>
+                            <td class="meal-col">{{ meal.capitalize() }}</td>
+                            <td>{{ food.name }}</td>
+                            <td>{{ food.quantity or 1 }}</td>
+                            <td>{{ food.calories }}</td>
+                            <td>
+                                <form method="GET" action="{{ url_for('edit_food_entry') }}" class="inline-form">
+                                    <input type="hidden" name="food_id" value="{{ food.id }}">
+                                    <input type="hidden" name="meal_type" value="{{ meal }}">
+                                    <button type="submit" class="edit-btn small-btn" style="margin-top: 6px; margin-bottom: 2px; width: 60px;">Edit</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+  </div>
+</div>
+<!-- Stacked Card Table (Mobile) -->
+<div class="stacked-table">
+  {% set meal_order = ["breakfast", "lunch", "dinner", "snack"] %}
+  {% for meal in meal_order %}
+    {% if meals.get(meal) and meals[meal]|length > 0 %}
+      <div class="stacked-card">
+        <button class="stacked-card-header" type="button">
+          <span class="stacked-card-title">{{ meal.capitalize() }}</span>
+          <span class="toggle-icon">&#9660;</span>
+        </button>
+        <div class="stacked-card-content">
+          {% for food in meals[meal] %}
+            <div style="margin-bottom: 10px;">
+              <div><strong>Food:</strong> {{ food.name }}</div>
+              <div><strong>Quantity:</strong> {{ food.quantity or 1 }}</div>
+              <div><strong>Calories:</strong> {{ food.calories }}</div>
+              <div class="card-actions">
+                <form method="GET" action="{{ url_for('edit_food_entry') }}" class="inline-form">
+                  <input type="hidden" name="food_id" value="{{ food.id }}">
+                  <input type="hidden" name="meal_type" value="{{ meal }}">
+                  <button type="submit" class="edit-btn small-btn" style="margin-top: 6px; margin-bottom: 2px; width: 60px;">Edit</button>
+                </form>
+              </div>
+            </div>
+            {% if not loop.last %}<hr style="margin: 8px 0;">{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+<p style="text-align:right; font-size:1.2em;"><strong>Total Calories:</strong> {{ total_calories }}</p>
+{% endif %}
+<a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+<!-- Collapsible card JS -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var headers = document.querySelectorAll('.stacked-card-header');
+  headers.forEach(function(header) {
+    var icon = header.querySelector('.toggle-icon');
+    // Always set initial state to down arrow
+    if (icon) {
+      icon.innerHTML = '&#9660;'; // ▼
+      icon.style.transform = 'rotate(0deg)';
+    }
+    header.addEventListener('click', function() {
+      var content = header.nextElementSibling;
+      // Accordion: close all others
+      document.querySelectorAll('.stacked-card-content.open').forEach(function(openContent) {
+        if (openContent !== content) {
+          openContent.classList.remove('open');
+          if (openContent.previousElementSibling) {
+            openContent.previousElementSibling.classList.remove('active');
+            var otherIcon = openContent.previousElementSibling.querySelector('.toggle-icon');
+            if (otherIcon) {
+              otherIcon.innerHTML = '&#9660;'; // ▼
+              otherIcon.style.transform = 'rotate(0deg)';
+            }
+          }
+        }
+      });
+      // Toggle current
+      var isOpen = content.classList.contains('open');
+      if (!isOpen) {
+        content.classList.add('open');
+        header.classList.add('active');
+        if (icon) {
+          icon.innerHTML = '&#9650;'; // ▲
+          icon.style.transform = 'rotate(0deg)';
+        }
+      } else {
+        content.classList.remove('open');
+        header.classList.remove('active');
+        if (icon) {
+          icon.innerHTML = '&#9660;'; // ▼
+          icon.style.transform = 'rotate(0deg)';
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
