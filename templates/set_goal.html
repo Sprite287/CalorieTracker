@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Set Daily Calorie & Weight Goal{% endblock %}
+{% block title %}Set Daily Calorie Limit & Weight Goal{% endblock %}
 
 {% block content %}
 <!-- Set Goal Form Section -->
@@ -13,8 +13,8 @@
     <p class="success">{{ success_message }}</p>
 {% endif %}
 <form method="POST" action="{{ url_for('set_goal') }}" class="goal-form" novalidate>
-    <label for="daily_calories">Daily Calorie Goal:</label>
-    <input type="number" name="daily_calories" id="daily_calories" value="{{ current_goal }}" min="0" required aria-required="true" aria-describedby="goal-error">
+    <label for="daily_calories">Daily Calorie Limit:</label>
+    <input type="number" name="daily_calories" id="daily_calories" value="{{ current_goal }}" min="1" required aria-required="true" aria-describedby="goal-error">
     <label for="weight_goal">Weight Goal (optional):</label>
     <input type="number" name="weight_goal" id="weight_goal" value="{{ current_weight_goal or '' }}" step="0.1" min="0" aria-describedby="goal-error">
     {% if error_message %}

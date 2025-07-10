@@ -21,7 +21,7 @@
         <button class="collapsible">
             <span class="history-date">{{ date }}</span>
             <span class="history-calories">Calories: <strong>{{ entry.total_calories }}</strong></span>
-            <span class="history-goal">Goal: <strong>{{ entry.daily_calories }}</strong></span>
+            <span class="history-limit">Limit: <strong>{{ entry.daily_calories }}</strong></span>
             <span class="history-overlimit {% if entry.over_limit %}over-limit{% else %}under-limit{% endif %}">
                 {% if entry.over_limit %}
                     Over Limit

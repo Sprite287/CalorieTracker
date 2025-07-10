@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <div style="display: flex; gap: 16px; justify-content: center; align-items: center; margin-top: 24px; flex-wrap: wrap;">
-    <form method="POST" action="{{ url_for('delete_food_entry') }}" style="margin: 0; padding: 0;">
+    <form method="POST" action="{{ url_for('delete_food_entry') }}" style="margin: 0; padding: 0;" onsubmit="return confirm('Are you sure you want to delete this food entry? This action cannot be undone.');">
         <input type="hidden" name="food_id" value="{{ food_entry.id }}">
         <input type="hidden" name="meal_type" value="{{ meal_type }}">
         <button type="submit" class="delete-btn small-btn" style="height: 38px; margin: 0; display: flex; align-items: center; justify-content: center;">Delete Entry</button>

@@ -4,23 +4,6 @@
 
 {% block content %}
 <h1>Add Food</h1>
-
-<!-- Quick Add Section -->
-{% if frequent_foods %}
-<div class="quick-add-section">
-    <h3>Quick Add - Your Favorites</h3>
-    <div class="quick-add-grid">
-        {% for food in frequent_foods %}
-        <button type="button" class="quick-add-btn" 
-                onclick="quickAddFood('{{ food.name }}', {{ food.calories }})"
-                title="Add {{ food.name }} ({{ food.calories }} cal)">
-            <span class="food-name">{{ food.name }}</span>
-            <span class="food-calories">{{ food.calories }} cal</span>
-        </button>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
     
 <!-- Display error messages if any -->
 {% if error_message %}
@@ -40,6 +23,17 @@
             <option value="{{ name }}" data-calories="{{ calories }}" {% if form_data and form_data.food_name == name %}selected{% endif %}>{{ name }} ({{ calories }} cal)</option>
         {% endfor %}
     </select>
+    
+    <!-- Favorites Dropdown -->
+    {% if frequent_foods %}
+    <label for="favorites_dropdown">Or select from favorites:</label>
+    <select id="favorites_dropdown" aria-label="Select from your favorite foods">
+        <option value="">--Select Favorite--</option>
+        {% for food in frequent_foods %}
+        <option value="{{ food.name }}" data-calories="{{ food.calories }}">{{ food.name }} ({{ food.calories }} cal)</option>
+        {% endfor %}
+    </select>
+    {% endif %}
     <span>or</span>
     <!-- New Food Input -->
     <label for="food_name_input">New food name:</label>
@@ -48,6 +42,7 @@
     <input type="number" name="calories" id="calories" value="{{ form_data.calories if form_data else '' }}" min="1" aria-describedby="add-food-error" inputmode="numeric">
     <label for="meal_type">Meal Type:</label>
     <select name="meal_type" id="meal_type" required aria-required="true" aria-describedby="add-food-error">
+        <option value="">--Select Meal Type--</option>
         {% for meal in meal_types %}
             <option value="{{ meal }}" {% if form_data and form_data.meal_type == meal %}selected{% endif %}>{{ meal.capitalize() }}</option>
         {% endfor %}
@@ -103,8 +98,21 @@ function quickAddFood(foodName, calories) {
     }
 }
 
-// Search functionality
-document.getElementById('food_search').addEventListener('input', function(e) {
+// Debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Search functionality with debouncing
+const searchFunction = function(e) {
     const searchTerm = e.target.value.toLowerCase();
     const dropdown = document.getElementById('food_name');
     const options = dropdown.querySelectorAll('option');
@@ -137,7 +145,10 @@ document.getElementById('food_search').addEventListener('input', function(e) {
         dropdown.style.display = 'none';
         dropdown.value = '';
     }
-});
+};
+
+// Add debounced search with 300ms delay
+document.getElementById('food_search').addEventListener('input', debounce(searchFunction, 300));
 
 // Select food from dropdown
 document.getElementById('food_name').addEventListener('change', function(e) {
@@ -184,6 +195,21 @@ function updateCaloriePreview() {
 
 // Update preview when quantity changes
 document.getElementById('quantity').addEventListener('input', updateCaloriePreview);
+
+// Handle favorites dropdown selection
+const favoritesDropdown = document.getElementById('favorites_dropdown');
+if (favoritesDropdown) {
+    favoritesDropdown.addEventListener('change', function(e) {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        if (selectedOption.value) {
+            const foodName = selectedOption.value;
+            const calories = selectedOption.getAttribute('data-calories');
+            quickAddFood(foodName, calories);
+            // Reset the favorites dropdown to default
+            e.target.value = '';
+        }
+    });
+}
 
 // Auto-focus on page load and smart meal detection
 document.addEventListener('DOMContentLoaded', function() {

@@ -57,7 +57,7 @@
     <div class="progress-ring-content">
         <div class="calorie-count">{{ total_calories }}</div>
         <div class="calorie-divider">/</div>
-        <div class="calorie-goal">{{ daily_calories }}</div>
+        <div class="calorie-limit">{{ daily_calories }}</div>
         <div class="calorie-label">calories</div>
         <div class="calorie-percent">{{ percent|round(1) }}%</div>
         
@@ -98,7 +98,7 @@
 <!-- Quick Actions -->
 <div class="quick-actions">
     <a href="{{ url_for('add_food') }}" class="primary-action-button">Add Food</a>
-    <a href="{{ url_for('set_goal') }}" class="secondary-action-button">Set Goal</a>
+    <a href="{{ url_for('set_goal') }}" class="secondary-action-button">Set Limit</a>
     <a href="{{ url_for('manage_food_database') }}" class="secondary-action-button">Manage Food Database</a>
 </div>
 

@@ -138,8 +138,8 @@ def home():
     daily_calories = db_handler.get_daily_calories(profile_name, today)
     if daily_calories is None:
         prev_date = get_previous_date(today)
-        prev_goal = db_handler.get_daily_calories(profile_name, prev_date)
-        daily_calories = prev_goal if prev_goal is not None else 2000
+        prev_limit = db_handler.get_daily_calories(profile_name, prev_date)
+        daily_calories = prev_limit if prev_limit is not None else 2000
     
     # Calculate progress as a float (can be >1 if over limit)
     progress = total_calories / daily_calories if daily_calories else 0
@@ -348,21 +348,23 @@ def set_goal():
     if request.method == "POST":
         try:
             daily_calories = int(request.form["daily_calories"])
+            if daily_calories < 1:
+                raise ValueError("Daily calorie limit must be at least 1.")
             weight_goal = request.form.get("weight_goal")
             db_handler.set_daily_calories(profile_name, today, daily_calories)
             if weight_goal:
                 db_handler.set_weight_goal(profile_name, float(weight_goal))
             else:
                 db_handler.set_weight_goal(profile_name, None)
-            flash("Goals set successfully.", "success")
+            flash("Daily calorie limit and weight goal set successfully.", "success")
             return redirect(url_for("home"))
         except ValueError as e:
             flash(str(e), "error")
-    current_goal = db_handler.get_daily_calories(profile_name, today) or 2000
+    current_limit = db_handler.get_daily_calories(profile_name, today) or 2000
     current_weight_goal = db_handler.get_weight_goal(profile_name)
     return render_template(
         "set_goal.html",
-        current_goal=current_goal,
+        current_goal=current_limit,
         current_weight_goal=current_weight_goal,
         error_message=request.args.get("error_message"),
         success_message=request.args.get("success_message")
@@ -724,11 +726,9 @@ def history():
         flash("End date is not valid. Please use format: YYYY-MM-DD (e.g., 2024-12-31). The year must be between 2020 and next year. Showing all history instead.", "error")
     page = int(request.args.get("page", 1))
     per_page = 5
-    history_data = db_handler.get_history(profile_name, start_date, end_date)
-    sorted_dates = sorted(history_data.keys(), reverse=True)
-    total_pages = (len(sorted_dates) + per_page - 1) // per_page
-    paginated_dates = sorted_dates[(page - 1) * per_page:page * per_page]
-    paginated_history = {date: history_data[date] for date in paginated_dates}
+    # Get paginated history data
+    paginated_history, total_items = db_handler.get_history(profile_name, start_date, end_date, page, per_page)
+    total_pages = (total_items + per_page - 1) // per_page
     return render_template(
         "summary_history.html",
         history=paginated_history,

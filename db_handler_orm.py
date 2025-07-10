@@ -42,32 +42,65 @@ def get_daily_log(profile_name, today):
     return profile["weekly_log"][today]
 
 def add_food_to_log(profile_name, today, meal_type, food_id, food_name, calories, quantity):
-    # Add to ORM table (now with quantity)
-    with get_session() as session:
-        entry = WeeklyLog(date=today, meal_type=meal_type, food_id=food_id, food_name=food_name, calories=calories, quantity=quantity)
-        session.add(entry)
-        session.commit()
-    # Add to profile JSON (with quantity)
-    profile = get_profile_data(profile_name)
-    if "weekly_log" not in profile:
-        profile["weekly_log"] = {}
-    if today not in profile["weekly_log"]:
-        profile["weekly_log"][today] = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
-    food_entry = {"id": food_id, "name": food_name, "calories": calories, "quantity": quantity}
-    profile["weekly_log"][today][meal_type].append(food_entry)
-    save_profile(profile_name, profile)
+    """Add food to log with transaction safety."""
+    try:
+        # Add to ORM table (now with quantity)
+        with get_session() as session:
+            entry = WeeklyLog(date=today, meal_type=meal_type, food_id=food_id, food_name=food_name, calories=calories, quantity=quantity)
+            session.add(entry)
+            session.commit()
+        
+        # Add to profile JSON (with quantity)
+        profile = get_profile_data(profile_name)
+        if "weekly_log" not in profile:
+            profile["weekly_log"] = {}
+        if today not in profile["weekly_log"]:
+            profile["weekly_log"][today] = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
+        food_entry = {"id": food_id, "name": food_name, "calories": calories, "quantity": quantity}
+        profile["weekly_log"][today][meal_type].append(food_entry)
+        save_profile(profile_name, profile)
+    except Exception as e:
+        # If JSON save fails, remove from ORM to maintain consistency
+        try:
+            with get_session() as session:
+                session.query(WeeklyLog).filter_by(food_id=food_id).delete()
+                session.commit()
+        except:
+            pass
+        raise e
 
 def delete_food_from_log(profile_name, today, meal_type, food_id):
-    # Remove from ORM table
-    with get_session() as session:
-        session.query(WeeklyLog).filter_by(date=today, meal_type=meal_type, food_id=food_id).delete()
-        session.commit()
-    # Remove from profile JSON
+    """Delete food from log with transaction safety."""
+    # First backup the JSON entry
     profile = get_profile_data(profile_name)
     log = profile.get("weekly_log", {})
+    backup_entry = None
+    
     if today in log and meal_type in log[today]:
-        log[today][meal_type] = [f for f in log[today][meal_type] if f.get("id") != food_id]
-        save_profile(profile_name, profile)
+        for entry in log[today][meal_type]:
+            if entry.get("id") == food_id:
+                backup_entry = entry.copy()
+                break
+    
+    try:
+        # Remove from ORM table
+        with get_session() as session:
+            session.query(WeeklyLog).filter_by(date=today, meal_type=meal_type, food_id=food_id).delete()
+            session.commit()
+        
+        # Remove from profile JSON
+        if today in log and meal_type in log[today]:
+            log[today][meal_type] = [f for f in log[today][meal_type] if f.get("id") != food_id]
+            save_profile(profile_name, profile)
+    except Exception as e:
+        # If removal fails, try to restore JSON entry
+        if backup_entry and today in log and meal_type in log[today]:
+            log[today][meal_type].append(backup_entry)
+            try:
+                save_profile(profile_name, profile)
+            except:
+                pass
+        raise e
 
 def update_food_entry(profile_name, today, meal_type, food_id, new_name, new_calories, new_quantity):
     profile = get_profile_data(profile_name)
@@ -298,29 +331,50 @@ def get_weight_change(profile_name):
         return None
     return weights[dates[-1]] - weights[dates[0]]
 
-def get_history(profile_name, start_date=None, end_date=None):
+def get_history(profile_name, start_date=None, end_date=None, page=1, per_page=None):
+    """Get history with optional pagination to improve performance."""
     profile = get_profile_data(profile_name)
     weekly_log = profile.get("weekly_log", {})
-    history = {}
-    for date, meals in weekly_log.items():
+    
+    # Filter dates first
+    filtered_dates = []
+    for date in weekly_log.keys():
         if (not start_date or date >= start_date) and (not end_date or date <= end_date):
-            total = 0
-            safe_meals = {}
-            for meal, foods in meals.items():
-                if isinstance(foods, list):
-                    safe_meals[meal] = foods
-                    total += sum(f.get("calories", 0) for f in foods if isinstance(f, dict))
-                else:
-                    safe_meals[meal] = []
-            daily_calories = profile.get("daily_calories", {}).get(date, 2000)
-            over_limit = total > daily_calories
-            history[date] = {
-                "meals": safe_meals,
-                "total_calories": total,
-                "daily_calories": daily_calories,
-                "over_limit": over_limit
-            }
-    return history
+            filtered_dates.append(date)
+    
+    # Sort dates in reverse chronological order
+    filtered_dates.sort(reverse=True)
+    
+    # Apply pagination if requested
+    if per_page:
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_dates = filtered_dates[start_idx:end_idx]
+    else:
+        paginated_dates = filtered_dates
+    
+    # Build history only for paginated dates
+    history = {}
+    for date in paginated_dates:
+        meals = weekly_log[date]
+        total = 0
+        safe_meals = {}
+        for meal, foods in meals.items():
+            if isinstance(foods, list):
+                safe_meals[meal] = foods
+                total += sum(f.get("calories", 0) for f in foods if isinstance(f, dict))
+            else:
+                safe_meals[meal] = []
+        daily_calories = profile.get("daily_calories", {}).get(date, 2000)
+        over_limit = total > daily_calories
+        history[date] = {
+            "meals": safe_meals,
+            "total_calories": total,
+            "daily_calories": daily_calories,
+            "over_limit": over_limit
+        }
+    
+    return history, len(filtered_dates)
 
 def synchronize_weekly_log(profile_name, today):
     profile = get_profile_data(profile_name)
