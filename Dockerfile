@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 8000
 
 # Start command
-CMD ["gunicorn", "CalorieApp:app", "--bind", "0.0.0.0:8000"]
+CMD gunicorn CalorieApp:app --bind 0.0.0.0:${PORT:-8000}
