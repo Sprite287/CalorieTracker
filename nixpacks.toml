@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc"]
+nixPkgs = ["python311", "postgresql"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = [
+    "python -m pip install --upgrade pip",
+    "pip install -r requirements.txt"
+]
 
 [start]
-cmd = "gunicorn CalorieApp:app --bind 0.0.0.0:$PORT"
+cmd = "gunicorn CalorieApp:app --bind 0.0.0.0:${PORT:-8000}"
