@@ -15,7 +15,20 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
 
-engine = create_engine(DATABASE_URL, echo=False)
+# Configure connection pooling for Render hobby tier
+# pool_size: number of connections to maintain (5 is safe for hobby tier)
+# max_overflow: maximum overflow connections (10 total connections max)
+# pool_timeout: seconds to wait before timeout
+# pool_recycle: recycle connections after 1 hour to avoid stale connections
+engine = create_engine(
+    DATABASE_URL, 
+    echo=False,
+    pool_size=5,
+    max_overflow=5,
+    pool_timeout=30,
+    pool_recycle=3600,
+    pool_pre_ping=True  # Verify connections before using
+)
 SessionLocal = sessionmaker(bind=engine)
 
 # Create tables if they don't exist

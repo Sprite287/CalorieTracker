@@ -13,42 +13,42 @@
 {% endif %}
     
 <!-- Food Entry Form -->
-<form method="POST" action="{{ url_for('add_food') }}" class="food-form" novalidate>
+<form method="POST" action="{{ url_for('add_food') }}" class="food-form" onsubmit="return validateFoodForm();" id="add-food-form" enctype="application/x-www-form-urlencoded">
     <!-- Existing Food Dropdown with Search -->
     <label for="food_search">Search/Select Food:</label>
-    <input type="text" id="food_search" placeholder="Type to search foods..." autocomplete="off">
-    <select name="food_name" id="food_name" aria-describedby="add-food-error" size="5" style="display: none;">
-        <option value="">--Choose--</option>
-        {% for name, calories in food_database %}
-            <option value="{{ name }}" data-calories="{{ calories }}" {% if form_data and form_data.food_name == name %}selected{% endif %}>{{ name }} ({{ calories }} cal)</option>
-        {% endfor %}
-    </select>
+    <div style="position: relative;">
+        <input type="text" id="food_search" placeholder="Type to search foods..." autocomplete="off">
+        <select name="food_name" id="food_name" aria-describedby="add-food-error" size="5" style="display: none;">
+            <option value="">--Choose--</option>
+            {% for name, calories in food_database %}
+                <option value="{{ name }}" data-calories="{{ calories }}" {% if form_data and form_data.food_name == name %}selected{% endif %}>{{ name }} ({{ calories }} cal)</option>
+            {% endfor %}
+        </select>
+    </div>
     
-    <!-- Favorites Dropdown -->
-    {% if frequent_foods %}
-    <label for="favorites_dropdown">Or select from favorites:</label>
-    <select id="favorites_dropdown" aria-label="Select from your favorite foods">
-        <option value="">--Select Favorite--</option>
-        {% for food in frequent_foods %}
-        <option value="{{ food.name }}" data-calories="{{ food.calories }}">{{ food.name }} ({{ food.calories }} cal)</option>
-        {% endfor %}
-    </select>
-    {% endif %}
-    <span>or</span>
+    <span style="display: block; text-align: center; margin: 10px 0; font-style: italic;">or</span>
     <!-- New Food Input -->
     <label for="food_name_input">New food name:</label>
-    <input type="text" name="food_name_input" id="food_name_input" value="{{ form_data.food_name_input if form_data else '' }}" aria-describedby="add-food-error">
+    <input type="text" name="food_name_input" id="food_name_input" value="{{ form_data.food_name_input if form_data else '' }}" aria-describedby="add-food-error" data-validation="food">
     <label for="calories">Calories:</label>
     <input type="number" name="calories" id="calories" value="{{ form_data.calories if form_data else '' }}" min="1" aria-describedby="add-food-error" inputmode="numeric">
     <label for="meal_type">Meal Type:</label>
     <select name="meal_type" id="meal_type" required aria-required="true" aria-describedby="add-food-error">
         <option value="">--Select Meal Type--</option>
-        {% for meal in meal_types %}
-            <option value="{{ meal }}" {% if form_data and form_data.meal_type == meal %}selected{% endif %}>{{ meal.capitalize() }}</option>
-        {% endfor %}
+        {% if meal_types %}
+            {% for meal in meal_types %}
+                <option value="{{ meal }}" {% if form_data and form_data.meal_type == meal %}selected{% endif %}>{{ meal.capitalize() }}</option>
+            {% endfor %}
+        {% else %}
+            <!-- Fallback if meal_types is not provided -->
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+            <option value="snack">Snack</option>
+        {% endif %}
     </select>
     <label for="quantity">Quantity:</label>
-    <input type="number" name="quantity" id="quantity" value="{{ form_data.quantity if form_data else '1' }}" min="1" aria-describedby="add-food-error" inputmode="numeric">
+    <input type="number" name="quantity" id="quantity" value="{{ form_data.quantity if form_data and form_data.quantity else '1' }}" min="1" aria-describedby="add-food-error" inputmode="numeric">
     <button type="submit" class="add-food-btn">Add Food</button>
 </form>
 <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
@@ -68,7 +68,37 @@ function quickAddFood(foodName, calories) {
     
     // Set the dropdown to the selected food
     const dropdown = document.getElementById('food_name');
-    dropdown.value = foodName;
+    
+    // First, show the dropdown if it's hidden
+    dropdown.style.display = 'block';
+    
+    // IMPORTANT: Reset all options to visible first
+    // This fixes the bug where options hidden by search remain hidden
+    const options = dropdown.querySelectorAll('option');
+    options.forEach(option => {
+        option.style.display = '';  // Make all options visible
+    });
+    
+    // Find and select the matching option
+    let found = false;
+    for (let i = 0; i < dropdown.options.length; i++) {
+        if (dropdown.options[i].value === foodName) {
+            dropdown.selectedIndex = i;
+            found = true;
+            break;
+        }
+    }
+    
+    // If not found, try to match by partial name
+    if (!found) {
+        for (let i = 0; i < dropdown.options.length; i++) {
+            if (dropdown.options[i].text.toLowerCase().includes(foodName.toLowerCase())) {
+                dropdown.selectedIndex = i;
+                found = true;
+                break;
+            }
+        }
+    }
     
     // Clear the new food inputs
     document.getElementById('food_name_input').value = '';
@@ -83,6 +113,10 @@ function quickAddFood(foodName, calories) {
     // Update calorie preview
     updateCaloriePreview();
     
+    // Don't trigger search event - it causes timing issues
+    // Instead, ensure the dropdown stays visible with the selection
+    dropdown.style.display = 'block';
+    
     // Flash the form briefly to indicate selection
     const form = document.querySelector('.food-form');
     form.style.transition = 'background-color 0.3s';
@@ -91,12 +125,24 @@ function quickAddFood(foodName, calories) {
         form.style.backgroundColor = '';
     }, 300);
     
-    // Focus on meal type if not selected
-    const mealType = document.getElementById('meal_type');
-    if (!mealType.value) {
-        mealType.focus();
+    // Focus on quantity for quick adjustment
+    quantityInput.focus();
+    quantityInput.select();
+    
+    // Ensure the dropdown shows the selected food
+    if (found) {
+        // Make sure the dropdown is visible and the correct option is highlighted
+        dropdown.style.display = 'block';
+        
+        // Scroll the selected option into view if needed
+        const selectedOption = dropdown.options[dropdown.selectedIndex];
+        if (selectedOption && selectedOption.scrollIntoView) {
+            selectedOption.scrollIntoView({ block: 'nearest' });
+        }
     }
 }
+
+// Flag to track if we're selecting from favorites
 
 // Debounce function
 function debounce(func, wait) {
@@ -117,46 +163,106 @@ const searchFunction = function(e) {
     const dropdown = document.getElementById('food_name');
     const options = dropdown.querySelectorAll('option');
     
-    if (searchTerm.length > 0) {
-        dropdown.style.display = 'block';
-        let hasVisibleOptions = false;
-        
-        options.forEach(option => {
-            if (option.value === '') return; // Skip the --Choose-- option
-            
-            const text = option.textContent.toLowerCase();
-            if (text.includes(searchTerm)) {
-                option.style.display = '';
-                hasVisibleOptions = true;
-            } else {
-                option.style.display = 'none';
-            }
-        });
-        
-        // Auto-select if only one match
-        const visibleOptions = Array.from(options).filter(opt => 
-            opt.value !== '' && opt.style.display !== 'none'
-        );
-        if (visibleOptions.length === 1) {
-            dropdown.value = visibleOptions[0].value;
-            updateCaloriePreview();
+    // Always show dropdown when there's input or search term
+    dropdown.style.display = 'block';
+    let hasVisibleOptions = false;
+    
+    options.forEach(option => {
+        if (option.value === '') {
+            option.style.display = searchTerm.length > 0 ? 'none' : ''; // Hide --Choose-- when searching
+            return;
         }
-    } else {
+        
+        const text = option.textContent.toLowerCase();
+        if (searchTerm.length === 0 || text.includes(searchTerm)) {
+            option.style.display = '';
+            hasVisibleOptions = true;
+        } else {
+            option.style.display = 'none';
+        }
+    });
+    
+    // Hide dropdown if no options are visible
+    if (!hasVisibleOptions && searchTerm.length > 0) {
         dropdown.style.display = 'none';
-        dropdown.value = '';
+    }
+    
+    // Auto-select if only one match
+    const visibleOptions = Array.from(options).filter(opt => 
+        opt.value !== '' && opt.style.display !== 'none'
+    );
+    if (visibleOptions.length === 1 && searchTerm.length > 0) {
+        dropdown.value = visibleOptions[0].value;
+        updateCaloriePreview();
     }
 };
 
 // Add debounced search with 300ms delay
-document.getElementById('food_search').addEventListener('input', debounce(searchFunction, 300));
+const searchInput = document.getElementById('food_search');
+searchInput.addEventListener('input', function(e) {
+    // Reset visual feedback when typing
+    this.style.backgroundColor = '';
+    this.style.borderColor = '';
+    
+    // Clear the dropdown selection when typing
+    document.getElementById('food_name').value = '';
+    
+    // Run the search
+    debounce(searchFunction, 300)(e);
+});
+
+// Show dropdown when clicking on search field
+document.getElementById('food_search').addEventListener('focus', function() {
+    const dropdown = document.getElementById('food_name');
+    dropdown.style.display = 'block';
+    // Trigger search to show all options
+    searchFunction({ target: this });
+});
+
+// Function to fill form when food is selected
+function selectFood(foodName, calories) {
+    // Clear the new food input fields since we're selecting existing food
+    document.getElementById('food_name_input').value = '';
+    document.getElementById('calories').value = '';
+    
+    // Update the search field to show selected food
+    document.getElementById('food_search').value = foodName;
+    
+    // Set the dropdown value
+    const dropdown = document.getElementById('food_name');
+    dropdown.value = foodName;
+    
+    // Hide the dropdown
+    dropdown.style.display = 'none';
+    
+    // Add visual feedback to show food is selected
+    const searchInput = document.getElementById('food_search');
+    searchInput.style.backgroundColor = '#e8f5e9';
+    searchInput.style.borderColor = '#4caf50';
+    
+    // Update calorie preview
+    updateCaloriePreview();
+    
+    // Focus on quantity field for quick entry
+    document.getElementById('quantity').focus();
+}
 
 // Select food from dropdown
 document.getElementById('food_name').addEventListener('change', function(e) {
     const selected = e.target.options[e.target.selectedIndex];
     if (selected.value) {
-        document.getElementById('food_search').value = selected.textContent.split(' (')[0];
-        document.getElementById('food_name').style.display = 'none';
-        updateCaloriePreview();
+        const foodName = selected.value;
+        const calories = selected.getAttribute('data-calories');
+        selectFood(foodName, calories);
+    }
+});
+
+// Handle click on dropdown options (for better UX)
+document.getElementById('food_name').addEventListener('click', function(e) {
+    if (e.target.tagName === 'OPTION' && e.target.value) {
+        const foodName = e.target.value;
+        const calories = e.target.getAttribute('data-calories');
+        selectFood(foodName, calories);
     }
 });
 
@@ -180,6 +286,7 @@ function updateCaloriePreview() {
     }
     
     if (selectedOption && selectedOption.value && quantityInput.value > 0) {
+        const foodName = selectedOption.value;
         const calories = parseInt(selectedOption.getAttribute('data-calories'));
         const quantity = parseInt(quantityInput.value);
         const total = calories * quantity;
@@ -187,7 +294,7 @@ function updateCaloriePreview() {
         const preview = document.createElement('div');
         preview.id = 'calorie-preview';
         preview.className = 'calorie-preview';
-        preview.innerHTML = `<strong>${calories} cal × ${quantity} = ${total} calories</strong>`;
+        preview.innerHTML = `<strong>${foodName}: ${calories} cal × ${quantity} = ${total} calories</strong>`;
         
         quantityInput.parentNode.insertBefore(preview, quantityInput.nextSibling);
     }
@@ -196,23 +303,76 @@ function updateCaloriePreview() {
 // Update preview when quantity changes
 document.getElementById('quantity').addEventListener('input', updateCaloriePreview);
 
-// Handle favorites dropdown selection
-const favoritesDropdown = document.getElementById('favorites_dropdown');
-if (favoritesDropdown) {
-    favoritesDropdown.addEventListener('change', function(e) {
-        const selectedOption = e.target.options[e.target.selectedIndex];
-        if (selectedOption.value) {
-            const foodName = selectedOption.value;
-            const calories = selectedOption.getAttribute('data-calories');
-            quickAddFood(foodName, calories);
-            // Reset the favorites dropdown to default
-            e.target.value = '';
-        }
-    });
+
+// Form validation
+function validateFoodForm() {
+    const foodDropdown = document.getElementById('food_name');
+    const newFoodName = document.getElementById('food_name_input');
+    const calories = document.getElementById('calories');
+    const mealType = document.getElementById('meal_type');
+    const quantity = document.getElementById('quantity');
+    const errorElement = document.getElementById('add-food-error');
+    
+    
+    
+    // Clear previous error
+    errorElement.style.display = 'none';
+    errorElement.textContent = '';
+    
+    // Check if either existing food is selected or new food is entered
+    const existingFood = foodDropdown.value;
+    const newFood = newFoodName.value.trim();
+    
+    if (!existingFood && !newFood) {
+        errorElement.textContent = 'Please select an existing food or enter a new food name';
+        errorElement.style.display = 'block';
+        newFoodName.focus();
+        return false;
+    }
+    
+    // If new food is entered, calories must be provided
+    if (newFood && !calories.value) {
+        errorElement.textContent = 'Please enter calories for the new food';
+        errorElement.style.display = 'block';
+        calories.focus();
+        return false;
+    }
+    
+    // Validate calories (must be positive)
+    if (calories.value && (isNaN(calories.value) || parseInt(calories.value) <= 0)) {
+        errorElement.textContent = 'Calories must be a positive number';
+        errorElement.style.display = 'block';
+        calories.focus();
+        return false;
+    }
+    
+    // Validate meal type
+    if (!mealType.value) {
+        errorElement.textContent = 'Please select a meal type';
+        errorElement.style.display = 'block';
+        mealType.focus();
+        return false;
+    }
+    
+    // Validate quantity
+    if (!quantity.value || isNaN(quantity.value) || parseInt(quantity.value) < 1) {
+        errorElement.textContent = 'Quantity must be at least 1';
+        errorElement.style.display = 'block';
+        quantity.focus();
+        return false;
+    }
+    
+    return true;
 }
+
 
 // Auto-focus on page load and smart meal detection
 document.addEventListener('DOMContentLoaded', function() {
+    // Reset search field styling on page load (in case of redirect after submit)
+    const searchField = document.getElementById('food_search');
+    searchField.style.backgroundColor = '';
+    searchField.style.borderColor = '';
+    
     const mealType = document.getElementById('meal_type');
     
     // Smart meal type detection based on time

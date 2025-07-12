@@ -23,14 +23,19 @@ def get_profiles():
         return {p.profile_name: json.loads(p.data) for p in profiles}
 
 def save_profile(profile_name, profile_data):
-    with get_session() as session:
-        profile = session.query(Profile).filter_by(profile_name=profile_name).first()
-        if profile:
-            profile.data = json.dumps(profile_data)
-        else:
-            profile = Profile(profile_name=profile_name, data=json.dumps(profile_data))
-            session.add(profile)
-        session.commit()
+    import logging
+    try:
+        with get_session() as session:
+            profile = session.query(Profile).filter_by(profile_name=profile_name).first()
+            if profile:
+                profile.data = json.dumps(profile_data)
+            else:
+                profile = Profile(profile_name=profile_name, data=json.dumps(profile_data))
+                session.add(profile)
+            session.commit()
+    except Exception as e:
+        logging.error(f"Failed to save profile {profile_name}: {e}")
+        raise  # Re-raise to let caller handle
 
 def get_daily_log(profile_name, today):
     profile = get_profile_data(profile_name)

@@ -51,7 +51,8 @@ def get_user_today():
             if delta > 1:
                 warning = f"Your device date ({user_date}) is different from the server date ({server_date}). Please check your device clock."
             return user_date, warning
-        except Exception:
+        except Exception as e:
+            logging.warning(f"Could not parse user date '{user_date}': {e}")
             pass
     return server_date, warning
 
@@ -126,7 +127,6 @@ def home():
 
     weekly_log = db_handler.get_weekly_log(profile_name)
     food_database = db_handler.get_food_database(profile_name)
-    print("food_database:", food_database)
 
     # Synchronize the weekly_log with the food_database
     db_handler.synchronize_weekly_log(profile_name, today)
@@ -370,6 +370,7 @@ def set_goal():
         success_message=request.args.get("success_message")
     )
 
+
 @app.route("/add_food", methods=["GET", "POST"])
 def add_food():
     profile_name = get_current_profile()
@@ -379,25 +380,13 @@ def add_food():
     db_handler.initialize_daily_log(profile_name, today)
     food_database = db_handler.get_food_database(profile_name)
     
-    # Get frequently used foods for quick add
-    food_counts = db_handler.get_food_counts(profile_name)
-    frequent_foods = []
-    if food_counts:
-        # Sort by count and get top 5
-        sorted_foods = sorted(food_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-        for food_name, count in sorted_foods:
-            if food_name in food_database:
-                frequent_foods.append({
-                    'name': food_name,
-                    'calories': food_database[food_name],
-                    'count': count
-                })
     
     if request.method == "POST":
         try:
+            
             food_name = request.form.get("food_name", "").strip()
             food_name_input = request.form.get("food_name_input", "").strip()
-            meal_type = request.form.get("meal_type")
+            meal_type = request.form.get("meal_type", "").strip()
             calories = request.form.get("calories")
             quantity = request.form.get("quantity", 1)
             # Backend validation
@@ -448,15 +437,13 @@ def add_food():
                 "add_food.html",
                 meal_types=["breakfast", "lunch", "dinner", "snack"],
                 food_database=sorted_food_database,
-                frequent_foods=frequent_foods,
                 form_data=form_data
             )
     sorted_food_database = sorted(food_database.items())
     return render_template(
         "add_food.html",
         meal_types=["breakfast", "lunch", "dinner", "snack"],
-        food_database=sorted_food_database,
-        frequent_foods=frequent_foods
+        food_database=sorted_food_database
     )
 
 @app.route("/delete_food_entry", methods=["POST"])
@@ -634,8 +621,7 @@ def manage_food_database():
         # Pass both a list of (name, calories) tuples and a list of names for dropdowns
         food_name_list = sorted(food_database.keys())
         food_database_items = sorted(food_database.items())
-        print("food_database:", food_database)
-        return render_template(
+            return render_template(
             "manage_food_database.html",
             food_database=food_database_items,
             food_name_list=food_name_list,
@@ -644,7 +630,7 @@ def manage_food_database():
             success_message=request.args.get("success_message"),
         )
     except Exception as e:
-        print("ERROR:", e)
+        logging.error(f"Error in apply_dark_mode: {e}")
         raise
 
 @app.route("/weekly_average")
@@ -821,7 +807,7 @@ def get_profile_details(profile_name):
         })
 
     except Exception as e:
-        print(f"[ERROR] Failed to fetch profile '{profile_name}': {e}")
+        logging.error(f"Failed to fetch profile '{profile_name}': {e}")
         return jsonify({"error": "Internal server error", "detail": str(e)}), 500
 
 @app.route("/api/profile/<profile_name>", methods=["DELETE"])
@@ -1051,4 +1037,5 @@ def add_header(response):
 # Run the app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug_mode = os.environ.get("DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

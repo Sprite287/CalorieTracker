@@ -517,32 +517,6 @@ body.dark-mode .secondary-action-button:hover {
     outline: 2px solid #1976d2;
 }
 
-/* === Favorites Dropdown === */
-#favorites_dropdown {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 16px;
-    background-color: #fff;
-    cursor: pointer;
-}
-
-#favorites_dropdown:focus {
-    outline: none;
-    border-color: #4CAF50;
-}
-
-body.dark-mode #favorites_dropdown {
-    background-color: #333;
-    color: #f5f5f5;
-    border-color: #555;
-}
-
-body.dark-mode #favorites_dropdown:focus {
-    border-color: #4CAF50;
-}
 
 /* === Miscellaneous Sections === */
 .no-data {
@@ -1513,11 +1487,14 @@ body.dark-mode .food-db-edit-section label {
     max-height: 200px;
     overflow-y: auto;
     background: white;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 100;
-    margin-top: -8px;
+    z-index: 1000;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 2px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 #food_name option {
@@ -1528,6 +1505,11 @@ body.dark-mode .food-db-edit-section label {
 
 #food_name option:hover {
     background-color: #f0f0f0;
+}
+
+#food_name option:checked {
+    background-color: #e3f2fd;
+    font-weight: bold;
 }
 
 /* Dark mode for search */
