@@ -621,7 +621,7 @@ def manage_food_database():
         # Pass both a list of (name, calories) tuples and a list of names for dropdowns
         food_name_list = sorted(food_database.keys())
         food_database_items = sorted(food_database.items())
-            return render_template(
+        return render_template(
             "manage_food_database.html",
             food_database=food_database_items,
             food_name_list=food_name_list,
