@@ -19,8 +19,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
+# Make startup script executable
+RUN chmod +x start.sh
+
 # Expose port (Railway will override this)
 EXPOSE 8000
 
-# Start command
-CMD gunicorn CalorieApp:app --bind 0.0.0.0:${PORT:-8000}
+# Start command - use shell form to properly expand PORT variable
+CMD ["sh", "-c", "./start.sh"]
