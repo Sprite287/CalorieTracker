@@ -40,6 +40,7 @@
     {% endif %}
 
     <form method="POST" action="{{ url_for('log_weight') }}" class="weight-form" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <label for="weight">Log Weight:</label>
         <input type="number" name="weight" id="weight" step="0.1" min="1" required aria-required="true" aria-describedby="weight-error">
         {% if get_flashed_messages(category_filter=['error']) %}

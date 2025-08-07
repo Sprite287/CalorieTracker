@@ -29,7 +29,7 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Calorie Tracker{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://kit.fontawesome.com/043020f8f3.js" crossorigin="anonymous"></script>
@@ -40,6 +40,30 @@
         if (localStorage.getItem("darkMode") === "true") {
             document.body.classList.add("dark-mode");
         }
+        
+        // Add loading state management
+        function showLoading(form) {
+            const button = form.querySelector('button[type="submit"]');
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalText = button.textContent;
+                button.textContent = 'Loading...';
+                button.classList.add('loading');
+            }
+        }
+        
+        // Add to all forms on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    // Don't show loading for forms with confirmation dialogs
+                    if (!form.onsubmit || form.onsubmit()) {
+                        showLoading(form);
+                    }
+                });
+            });
+        });
     </script>
 
     <style>

@@ -47,65 +47,58 @@ def get_daily_log(profile_name, today):
     return profile["weekly_log"][today]
 
 def add_food_to_log(profile_name, today, meal_type, food_id, food_name, calories, quantity):
-    """Add food to log with transaction safety."""
+    """Add food to ORM table only for single source of truth."""
     try:
-        # Add to ORM table (now with quantity)
         with get_session() as session:
-            entry = WeeklyLog(date=today, meal_type=meal_type, food_id=food_id, food_name=food_name, calories=calories, quantity=quantity)
+            # Check profile exists
+            profile = session.query(Profile).filter_by(
+                profile_name=profile_name
+            ).first()
+            
+            if not profile:
+                raise ValueError(f"Profile {profile_name} not found")
+            
+            # Add to ORM table only
+            entry = WeeklyLog(
+                profile_name=profile_name,
+                date=today, 
+                meal_type=meal_type,
+                food_id=food_id,
+                food_name=food_name, 
+                calories=calories,
+                quantity=quantity
+            )
             session.add(entry)
             session.commit()
-        
-        # Add to profile JSON (with quantity)
-        profile = get_profile_data(profile_name)
-        if "weekly_log" not in profile:
-            profile["weekly_log"] = {}
-        if today not in profile["weekly_log"]:
-            profile["weekly_log"][today] = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
-        food_entry = {"id": food_id, "name": food_name, "calories": calories, "quantity": quantity}
-        profile["weekly_log"][today][meal_type].append(food_entry)
-        save_profile(profile_name, profile)
+            
+            logging.info(f"Added food {food_name} to {profile_name}'s log for {today}")
+            return True
     except Exception as e:
-        # If JSON save fails, remove from ORM to maintain consistency
-        try:
-            with get_session() as session:
-                session.query(WeeklyLog).filter_by(food_id=food_id).delete()
-                session.commit()
-        except:
-            pass
-        raise e
+        logging.error(f"Failed to add food to log: {e}")
+        raise
 
 def delete_food_from_log(profile_name, today, meal_type, food_id):
-    """Delete food from log with transaction safety."""
-    # First backup the JSON entry
-    profile = get_profile_data(profile_name)
-    log = profile.get("weekly_log", {})
-    backup_entry = None
-    
-    if today in log and meal_type in log[today]:
-        for entry in log[today][meal_type]:
-            if entry.get("id") == food_id:
-                backup_entry = entry.copy()
-                break
-    
+    """Delete food from ORM table only for single source of truth."""
     try:
-        # Remove from ORM table
+        # Remove from ORM table only
         with get_session() as session:
-            session.query(WeeklyLog).filter_by(date=today, meal_type=meal_type, food_id=food_id).delete()
+            deleted = session.query(WeeklyLog).filter_by(
+                profile_name=profile_name,
+                date=today, 
+                meal_type=meal_type, 
+                food_id=food_id
+            ).delete()
+            
+            if deleted == 0:
+                logging.warning(f"No entry found to delete: {food_id}")
+                return False
+                
             session.commit()
-        
-        # Remove from profile JSON
-        if today in log and meal_type in log[today]:
-            log[today][meal_type] = [f for f in log[today][meal_type] if f.get("id") != food_id]
-            save_profile(profile_name, profile)
+            logging.info(f"Deleted food {food_id} from {profile_name}'s log")
+            return True
     except Exception as e:
-        # If removal fails, try to restore JSON entry
-        if backup_entry and today in log and meal_type in log[today]:
-            log[today][meal_type].append(backup_entry)
-            try:
-                save_profile(profile_name, profile)
-            except:
-                pass
-        raise e
+        logging.error(f"Failed to delete food from log: {e}")
+        raise
 
 def update_food_entry(profile_name, today, meal_type, food_id, new_name, new_calories, new_quantity):
     profile = get_profile_data(profile_name)
@@ -199,28 +192,14 @@ def delete_food_from_database(profile_name, food_name):
             meals[meal] = [f for f in foods if isinstance(f, dict) and f.get("name") != food_name]
     save_profile(profile_name, profile)
 
-def update_food_entry_calories_db(today, meal_type, food_id, new_calories):
-    with get_session() as session:
-        entry = session.query(WeeklyLog).filter_by(date=today, meal_type=meal_type, food_id=food_id).first()
-        if entry:
-            entry.calories = new_calories
-            session.commit()
-
 def get_profile_data(profile_name):
     with get_session() as session:
         profile = session.query(Profile).filter_by(profile_name=profile_name).first()
         if profile:
             data = json.loads(profile.data)
-            # Clean malformed meals on load
-            if "weekly_log" in data:
-                for date, meals in data["weekly_log"].items():
-                    for meal in ["breakfast", "lunch", "dinner", "snack"]:
-                        if meal not in meals or not isinstance(meals[meal], list):
-                            meals[meal] = []
             return data
         # Return a default profile structure if not found
         return {
-            "weekly_log": {},
             "food_database": {},
             "weight_goal": None,
             "weights": {},
@@ -228,21 +207,35 @@ def get_profile_data(profile_name):
         }
 
 def initialize_daily_log(profile_name, today):
-    profile = get_profile_data(profile_name)
-    if "weekly_log" not in profile:
-        profile["weekly_log"] = {}
-    if today not in profile["weekly_log"]:
-        profile["weekly_log"][today] = {
-            "breakfast": [],
-            "lunch": [],
-            "dinner": [],
-            "snack": []
-        }
-        save_profile(profile_name, profile)
+    # Daily logs are now handled entirely by WeeklyLog ORM table
+    # This function is kept for backward compatibility but does nothing
+    pass
 
 def get_weekly_log(profile_name):
-    profile = get_profile_data(profile_name)
-    return profile.get("weekly_log", {})
+    """Get weekly log from ORM tables instead of JSON for better data integrity."""
+    with get_session() as session:
+        # Query from WeeklyLog table
+        logs = session.query(WeeklyLog).filter(
+            WeeklyLog.profile_name == profile_name
+        ).order_by(WeeklyLog.date.desc()).all()
+        
+        # Convert to expected format
+        weekly_log = {}
+        for log in logs:
+            if log.date not in weekly_log:
+                weekly_log[log.date] = {
+                    "breakfast": [], "lunch": [], 
+                    "dinner": [], "snack": []
+                }
+            
+            weekly_log[log.date][log.meal_type].append({
+                "id": log.food_id,
+                "name": log.food_name,
+                "calories": log.calories,
+                "quantity": log.quantity
+            })
+        
+        return weekly_log
 
 def get_food_database(profile_name):
     profile = get_profile_data(profile_name)
@@ -414,3 +407,8 @@ def get_weights(profile_name):
 def validate_profile(profile_name):
     profiles = get_profiles()
     return profile_name in profiles
+
+def get_profiles_file_path():
+    """Return the path to the profiles.json file for backup/export"""
+    import os
+    return os.path.join(os.path.dirname(__file__), 'profiles_export.json')

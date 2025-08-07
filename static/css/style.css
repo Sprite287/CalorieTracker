@@ -27,6 +27,81 @@ body {
     line-height: 1.7;
 }
 
+/* Loading state for buttons */
+button.loading {
+    position: relative;
+    color: transparent !important;
+}
+
+button.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin: -8px 0 0 -8px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spinner 0.6s linear infinite;
+}
+
+@keyframes spinner {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 12px;
+    margin: 30px auto;
+    max-width: 500px;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.7;
+}
+
+.empty-state h2 {
+    color: #444;
+    margin-bottom: 12px;
+    font-size: 1.8rem;
+}
+
+.empty-state h3 {
+    color: #666;
+    margin-bottom: 8px;
+    font-size: 1.4rem;
+}
+
+.empty-state p {
+    color: #777;
+    margin-bottom: 24px;
+    font-size: 1.1rem;
+}
+
+.empty-state .primary-action-button {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 12px 32px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.empty-state .primary-action-button:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
 /* Smooth page transitions */
 .container {
     animation: fadeInUp 0.4s ease-out;

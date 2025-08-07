@@ -15,6 +15,7 @@
 
 <!-- Form to create a new profile -->
 <form method="POST" action="{{ url_for('select_profile') }}" class="profile-form" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <label for="profile_name">Profile Name:</label>
     <input type="text" name="profile_name" id="profile_name" required aria-required="true" aria-describedby="profile-error">
     {% if error_message %}
@@ -29,10 +30,12 @@
     {% for name in profiles %}
     <li>
         <form method="POST" action="{{ url_for('select_profile') }}" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" name="profile_name" value="{{ name }}">
             <button type="submit" class="profile-select-btn">{{ name }}</button>
         </form>
         <form method="POST" action="{{ url_for('delete_profile', profile_name=name) }}" class="inline-form" onsubmit="return confirm('Are you sure you want to delete profile \'{{ name }}\'? This action cannot be undone.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="delete-btn">Delete</button>
         </form>
     </li>

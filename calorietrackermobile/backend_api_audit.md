@@ -162,8 +162,8 @@ To ensure data safety, especially before any database schema modifications, a ro
 
 ### Current Backup Mechanism (Observed):
 - The `CalorieApp.py` exposes a `/download_profiles` endpoint, secured by a `SYNC_TOKEN` environment variable.
-- This endpoint uses `send_file(db_handler.get_profiles_file_path(), as_attachment=True)` to allow downloading a file, presumably `profiles.json`.
-- **Note on `get_profiles_file_path()`**: The definition of `db_handler.get_profiles_file_path()` was not found in `db_handler_orm.py`, `db_orm.py`, or `CalorieApp.py` during the audit. It is assumed to return a path to a generated `profiles.json` file containing exported profile data.
+- This endpoint uses `send_file(db_handler.get_profiles_file_path(), as_attachment=True)` to allow downloading a file.
+- **Update**: `get_profiles_file_path()` has been implemented in `db_handler_orm.py` and returns path to `profiles_export.json`.
 
 ### Enhanced Backup Procedures (Proposed):
 Given that the primary data store is a PostgreSQL database, the most reliable backup method is to use `pg_dump`.

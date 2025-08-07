@@ -14,6 +14,7 @@
     
 <!-- Food Entry Form -->
 <form method="POST" action="{{ url_for('add_food') }}" class="food-form" onsubmit="return validateFoodForm();" id="add-food-form" enctype="application/x-www-form-urlencoded">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <!-- Existing Food Dropdown with Search -->
     <label for="food_search">Search/Select Food:</label>
     <div style="position: relative;">

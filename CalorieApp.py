@@ -4,6 +4,9 @@ import json
 import datetime
 import uuid  # For generating unique IDs
 import logging
+import secrets
+import sys
+import html
 from dotenv import load_dotenv
 import db_handler_orm as db_handler
 from db_handler_orm import get_profiles, validate_profile, get_profile_data, save_profile, delete_profile
@@ -14,11 +17,155 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
+# Security check for production
+if os.environ.get("FLASK_ENV") == "production":
+    if not os.environ.get("SECRET_KEY") or os.environ.get("SECRET_KEY") == "fallback-local-dev-key":
+        logging.error("CRITICAL: SECRET_KEY not set in production!")
+        sys.exit(1)
+    if not os.environ.get("ADMIN_BACKUP_KEY") or os.environ.get("ADMIN_BACKUP_KEY") == "fallback":
+        logging.error("CRITICAL: ADMIN_BACKUP_KEY not set in production!")
+        sys.exit(1)
+
+# For development, generate random keys if not set
+if not os.environ.get("SECRET_KEY"):
+    os.environ["SECRET_KEY"] = secrets.token_hex(32)
+    logging.warning("Generated random SECRET_KEY for development")
+
+if not os.environ.get("ADMIN_BACKUP_KEY"):
+    os.environ["ADMIN_BACKUP_KEY"] = secrets.token_hex(32)
+    logging.warning("Generated random ADMIN_BACKUP_KEY for development")
+
+if not os.environ.get("SYNC_TOKEN"):
+    os.environ["SYNC_TOKEN"] = secrets.token_hex(16)
+    logging.warning("Generated random SYNC_TOKEN for development")
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "fallback-local-dev-key")  # Use env var for Flask secret
-ADMIN_BACKUP_KEY = os.environ.get("ADMIN_BACKUP_KEY", "fallback")  # Use env var for admin backup key
+app.secret_key = os.environ.get("SECRET_KEY")
+ADMIN_BACKUP_KEY = os.environ.get("ADMIN_BACKUP_KEY")
+
+# Configure session security
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get("FLASK_ENV") == "production"  # HTTPS only in production
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=2)  # 2 hour timeout
+
+# Add CSRF protection
+try:
+    from flask_wtf.csrf import CSRFProtect, CSRFError
+    csrf = CSRFProtect(app)
+    
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        flash("Security validation failed. Please try again.", "error")
+        return redirect(request.referrer or url_for("home"))
+except ImportError:
+    logging.warning("Flask-WTF not installed. CSRF protection disabled. Run: pip install Flask-WTF")
+
+# Add rate limiting
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://",
+    )
+    
+    # More restrictive limits for sensitive endpoints
+    profile_limits = "10 per minute"
+    food_limits = "30 per minute"
+    auth_limits = "5 per minute"
+    
+    # Decorator helper for optional limiter
+    def rate_limit(limit_string):
+        def decorator(f):
+            if limiter:
+                return limiter.limit(limit_string)(f)
+            return f
+        return decorator
+    
+except ImportError:
+    logging.warning("Flask-Limiter not installed. Rate limiting disabled. Run: pip install Flask-Limiter")
+    limiter = None
+    # Dummy decorator when limiter not available
+    def rate_limit(limit_string):
+        def decorator(f):
+            return f
+        return decorator
 
 # --- Helper Functions ---
+
+# Session management
+@app.before_request
+def before_request():
+    """Manage session timeout and refresh."""
+    session.permanent = True  # Use PERMANENT_SESSION_LIFETIME
+    
+    # Check if user is logged in (has profile)
+    if 'current_profile' in session:
+        # Refresh session timeout on activity
+        session.modified = True
+        
+        # Check last activity time
+        if 'last_activity' in session:
+            time_since_activity = datetime.datetime.now() - session.get('last_activity', datetime.datetime.now())
+            if time_since_activity > datetime.timedelta(hours=2):
+                session.clear()
+                flash("Your session has expired. Please select your profile again.", "info")
+                return redirect(url_for('select_profile'))
+        
+        session['last_activity'] = datetime.datetime.now()
+
+# Input validation and sanitization functions
+def sanitize_input(text, max_length=200):
+    """Sanitize user input to prevent XSS."""
+    if not text:
+        return ""
+    text = html.escape(str(text).strip())
+    # Remove non-printable characters
+    text = ''.join(char for char in text if char.isprintable())
+    return text[:max_length]
+
+def validate_calories(calories_str):
+    """Validate calorie input."""
+    try:
+        calories = int(calories_str)
+        if 0 <= calories <= 10000:
+            return calories
+    except (ValueError, TypeError):
+        pass
+    return None
+
+def validate_quantity(qty_str):
+    """Validate quantity input."""
+    try:
+        qty = int(qty_str)
+        if 1 <= qty <= 100:
+            return qty
+    except (ValueError, TypeError):
+        pass
+    return 1  # Default to 1
+
+def validate_meal_type(meal_type):
+    """Validate meal type."""
+    valid_types = ["breakfast", "lunch", "dinner", "snack"]
+    return meal_type if meal_type in valid_types else None
+
+def validate_profile_name(name):
+    """Validate profile name format."""
+    if not name:
+        return None
+    name = sanitize_input(name, 50)
+    if len(name) < 2:
+        return None
+    # Only allow alphanumeric, spaces, hyphens, underscores
+    import re
+    if not re.match(r'^[a-zA-Z0-9\s\-_]+$', name):
+        return None
+    return name
+
 def get_current_profile():
     if "current_profile" in session:
         return session["current_profile"]
@@ -69,21 +216,6 @@ def is_valid_date(date_str, min_year=None, max_year=None):
     except Exception:
         return False
 
-def get_user_utc_today():
-    """Get the user's UTC date (YYYY-MM-DD) from the cookie, fallback to Central US time (Oklahoma)."""
-    user_utc_date = request.cookies.get("user_utc_date")
-    this_year = datetime.datetime.utcnow().year
-    if user_utc_date and is_valid_date(user_utc_date, min_year=this_year-1, max_year=this_year+1):
-        return user_utc_date
-    # Fallback: Central US time (Oklahoma)
-    try:
-        from zoneinfo import ZoneInfo
-        central_now = datetime.datetime.now(ZoneInfo("America/Chicago"))
-        return central_now.strftime("%Y-%m-%d")
-    except Exception:
-        # If zoneinfo is not available, fallback to UTC
-        return datetime.datetime.utcnow().strftime("%Y-%m-%d")
-
 # --- Helper: Robust date handling ---
 def get_request_date():
     date_str = request.args.get("date") or (request.json.get("date") if request.is_json else None)
@@ -94,17 +226,6 @@ def get_request_date():
         except Exception:
             pass
     return datetime.date.today().isoformat()
-
-# --- Helper: Hardened profile creation ---
-def create_default_profile():
-    return {
-        "weekly_log": {},
-        "food_database": {},
-        "weight_goal": None,
-        "weights": {},
-        "daily_calories": {},
-        "uuid": str(uuid.uuid4())
-    }
 
 # Routes
 @app.route("/")
@@ -248,11 +369,19 @@ def home():
     )
 
 @app.route("/select_profile", methods=["GET", "POST"])
+@rate_limit(auth_limits)
 def select_profile():
     logging.debug("Accessed /select_profile route.")
     profiles = db_handler.get_profiles()
     if request.method == "POST":
-        profile_name = request.form["profile_name"].strip()
+        profile_name_raw = request.form.get("profile_name", "").strip()
+        
+        # Validate and sanitize profile name
+        profile_name = validate_profile_name(profile_name_raw)
+        if not profile_name:
+            flash("Invalid profile name. Must be 2-50 characters and contain only letters, numbers, spaces, hyphens, or underscores.", "error")
+            return redirect(url_for("select_profile"))
+        
         logging.debug(f"Received profile_name: {profile_name}")
         if profile_name not in profiles:
             db_handler.save_profile(profile_name, {
@@ -272,6 +401,7 @@ def select_profile():
     return render_template("select_profile.html", profiles=db_handler.get_profiles().keys())
 
 @app.route("/delete_profile/<profile_name>", methods=["POST"])
+@rate_limit(auth_limits)
 def delete_profile(profile_name):
     """Route to delete a profile with improved error handling."""
     try:
@@ -330,11 +460,16 @@ def magic_login():
 
 @app.route("/download_profiles")
 def download_profiles():
-    # Secure with a token in the URL
+    # Secure with a token in the URL using constant-time comparison
     token = request.args.get("token")
-    expected_token = os.environ.get("SYNC_TOKEN", "profilebackup")  # Set this in Render env vars!
-    if token != expected_token:
-        return "Unauthorized", 403
+    expected_token = os.environ.get("SYNC_TOKEN")
+    
+    if not expected_token:
+        logging.error("SYNC_TOKEN not configured")
+        return jsonify({"error": "Server configuration error"}), 500
+    
+    if not token or not secrets.compare_digest(token, expected_token):
+        return jsonify({"error": "Unauthorized"}), 401
     # Send the profiles.json file as a download
     return send_file(db_handler.get_profiles_file_path(), as_attachment=True)
 
@@ -372,6 +507,7 @@ def set_goal():
 
 
 @app.route("/add_food", methods=["GET", "POST"])
+@rate_limit(food_limits)
 def add_food():
     profile_name = get_current_profile()
     if not profile_name:
@@ -383,32 +519,34 @@ def add_food():
     
     if request.method == "POST":
         try:
+            # Sanitize and validate all inputs
+            food_name = sanitize_input(request.form.get("food_name", ""), 100)
+            food_name_input = sanitize_input(request.form.get("food_name_input", ""), 100)
+            meal_type = validate_meal_type(request.form.get("meal_type", "").strip())
+            calories_raw = request.form.get("calories")
+            quantity = validate_quantity(request.form.get("quantity", "1"))
             
-            food_name = request.form.get("food_name", "").strip()
-            food_name_input = request.form.get("food_name_input", "").strip()
-            meal_type = request.form.get("meal_type", "").strip()
-            calories = request.form.get("calories")
-            quantity = request.form.get("quantity", 1)
-            # Backend validation
-            if not meal_type or meal_type not in ["breakfast", "lunch", "dinner", "snack"]:
+            # Validate meal type
+            if not meal_type:
                 raise ValueError("Invalid meal type. Please select one of: breakfast, lunch, dinner, or snack.")
-            try:
-                quantity = int(quantity)
-                if quantity < 1:
-                    raise ValueError
-            except Exception:
+            
+            # Validate quantity
+            if quantity is None or quantity < 1:
                 raise ValueError("Quantity must be a positive whole number (1 or greater). For partial servings, adjust the calorie count instead.")
             if food_name:
                 calories_per_unit = db_handler.get_food_calories(profile_name, food_name)
                 if calories_per_unit is None:
                     raise ValueError(f"The food '{food_name}' is not in your database. Please add it as a new food item first or select a different food.")
             elif food_name_input:
-                try:
-                    calories = int(calories)
-                    if calories <= 0:
-                        raise ValueError
-                except Exception:
-                    raise ValueError("Calories must be a positive whole number. Please enter the total calories for this food item (minimum 1 calorie).")
+                # Validate calories input
+                calories = validate_calories(calories_raw)
+                if calories is None or calories <= 0:
+                    raise ValueError("Calories must be a positive whole number between 1 and 10000.")
+                
+                # Validate food name length
+                if len(food_name_input) < 2:
+                    raise ValueError("Food name must be at least 2 characters long.")
+                    
                 food_name = food_name_input
                 calories_per_unit = calories
                 db_handler.set_food_calories(profile_name, food_name, calories_per_unit)
@@ -630,7 +768,7 @@ def manage_food_database():
             success_message=request.args.get("success_message"),
         )
     except Exception as e:
-        logging.error(f"Error in apply_dark_mode: {e}")
+        logging.error(f"Error in manage_food_database: {e}")
         raise
 
 @app.route("/weekly_average")

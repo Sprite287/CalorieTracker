@@ -50,11 +50,15 @@ package-lock.json
 .DS_Store
 Thumbs.db
 
-# WSL specific scripts
-*_wsl.py
-sync_to_windows.py
+# Backup and export files
+*.bak
+*.backup
+profiles_export.json
+*_export_*.sql
 
-# Local development scripts
-Start.py
-Stop.py
-Restart.py
+# Claude AI
+.claude/
+
+# macOS
+.DS_Store
+*.DS_Store

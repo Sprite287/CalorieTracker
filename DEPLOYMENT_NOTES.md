@@ -23,11 +23,14 @@
 
 The app will automatically create tables on first run. Uses PostgreSQL on Railway.
 
-## Notes for 2-Person Private Use
+## Security Features
 
-- No CSRF protection (not needed for trusted users)
-- Basic error handling focused on data integrity
-- Optimized for Railway hobby tier resource limits
+- **CSRF Protection:** Enabled via Flask-WTF on all forms
+- **Rate Limiting:** Flask-Limiter (10/min auth, 30/min operations)
+- **Session Management:** 2-hour timeout with automatic refresh
+- **Input Validation:** Comprehensive server and client-side validation
+- **XSS Protection:** HTML escaping and sanitization
+- **Secure Tokens:** Uses secrets.compare_digest for token comparison
 
 ## Railway-Specific Notes
 
