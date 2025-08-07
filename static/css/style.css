@@ -472,7 +472,7 @@ body.dark-mode .secondary-action-button:hover {
 
 .skip-link {
     position: absolute;
-    left: -999px;
+    left: -9999px;
     top: 10px;
     background: #222;
     color: #fff;
@@ -481,10 +481,20 @@ body.dark-mode .secondary-action-button:hover {
     border-radius: 6px;
     font-size: 1rem;
     text-decoration: none;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
 }
 .skip-link:focus {
     left: 10px;
     outline: 2px solid #4caf50;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
 }
 
 /* === Navigation Buttons (Vertical) === */
