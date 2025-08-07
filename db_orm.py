@@ -4,6 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models import Base
 from contextlib import contextmanager
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -30,6 +34,14 @@ engine = create_engine(
     pool_pre_ping=True  # Verify connections before using
 )
 SessionLocal = sessionmaker(bind=engine)
+
+# Run migrations first
+try:
+    from migrate_database import migrate_database
+    logger.info("Running database migrations...")
+    migrate_database()
+except Exception as e:
+    logger.warning(f"Migration check failed (may be normal on first run): {e}")
 
 # Create tables if they don't exist
 Base.metadata.create_all(engine)
