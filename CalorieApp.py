@@ -10,6 +10,8 @@ import html
 from dotenv import load_dotenv
 import db_handler_orm as db_handler
 from db_handler_orm import get_profiles, validate_profile, get_profile_data, save_profile, delete_profile
+from flask_migrate import Migrate
+from database import init_db
 
 load_dotenv()
 # ^ Loads .env for local secrets. On Render, secrets come from Render's Environment tab, not .env.
@@ -43,6 +45,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
 ADMIN_BACKUP_KEY = os.environ.get("ADMIN_BACKUP_KEY")
 
+# Initialize database and migrations
+db = init_db(app)
+migrate = Migrate(app, db)
+
 # Configure session security
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get("FLASK_ENV") == "production"  # HTTPS only in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
@@ -62,6 +68,11 @@ except ImportError:
     logging.warning("Flask-WTF not installed. CSRF protection disabled. Run: pip install Flask-WTF")
 
 # Add rate limiting
+# Define limits outside try block for consistency
+profile_limits = "10 per minute"
+food_limits = "30 per minute"
+auth_limits = "5 per minute"
+
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
@@ -72,11 +83,6 @@ try:
         default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://",
     )
-    
-    # More restrictive limits for sensitive endpoints
-    profile_limits = "10 per minute"
-    food_limits = "30 per minute"
-    auth_limits = "5 per minute"
     
     # Decorator helper for optional limiter
     def rate_limit(limit_string):
