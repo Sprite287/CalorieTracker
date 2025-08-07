@@ -48,11 +48,17 @@ def run_migrations():
                         with db.engine.connect() as conn:
                             trans = conn.begin()
                             try:
+                                # Detect database type
+                                is_postgres = 'postgresql' in str(db.engine.url)
+                                
                                 # Add uuid column
-                                conn.execute(text("ALTER TABLE profiles ADD COLUMN uuid VARCHAR"))
+                                if is_postgres:
+                                    conn.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS uuid VARCHAR"))
+                                else:
+                                    conn.execute(text("ALTER TABLE profiles ADD COLUMN uuid VARCHAR"))
                                 
                                 # Generate UUIDs for existing profiles
-                                result = conn.execute(text("SELECT profile_name FROM profiles"))
+                                result = conn.execute(text("SELECT profile_name FROM profiles WHERE uuid IS NULL"))
                                 for row in result:
                                     profile_uuid = str(uuid_module.uuid4())
                                     conn.execute(
@@ -61,18 +67,40 @@ def run_migrations():
                                     )
                                 
                                 # Make uuid NOT NULL and UNIQUE
-                                conn.execute(text("ALTER TABLE profiles ALTER COLUMN uuid SET NOT NULL"))
-                                conn.execute(text("ALTER TABLE profiles ADD CONSTRAINT profiles_uuid_key UNIQUE (uuid)"))
+                                if is_postgres:
+                                    conn.execute(text("ALTER TABLE profiles ALTER COLUMN uuid SET NOT NULL"))
+                                    # Check if constraint exists before adding
+                                    constraint_check = conn.execute(text("""
+                                        SELECT 1 FROM pg_constraint 
+                                        WHERE conname = 'profiles_uuid_key'
+                                    """)).fetchone()
+                                    if not constraint_check:
+                                        conn.execute(text("ALTER TABLE profiles ADD CONSTRAINT profiles_uuid_key UNIQUE (uuid)"))
                                 
                                 # Add created_at column
-                                conn.execute(text("ALTER TABLE profiles ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                                
-                                # Add created_at to weekly_log
-                                conn.execute(text("ALTER TABLE weekly_log ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                                if is_postgres:
+                                    conn.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                                    conn.execute(text("ALTER TABLE weekly_log ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                                else:
+                                    # SQLite doesn't support IF NOT EXISTS for columns
+                                    if 'created_at' not in profile_columns:
+                                        conn.execute(text("ALTER TABLE profiles ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                                    weekly_columns = [col['name'] for col in inspector.get_columns('weekly_log')]
+                                    if 'created_at' not in weekly_columns:
+                                        conn.execute(text("ALTER TABLE weekly_log ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
                                 
                                 # Create indexes if they don't exist
-                                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_profile_date ON weekly_log(profile_name, date)"))
-                                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_weekly_log_date ON weekly_log(date)"))
+                                if is_postgres:
+                                    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_profile_date ON weekly_log(profile_name, date)"))
+                                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_weekly_log_date ON weekly_log(date)"))
+                                else:
+                                    # SQLite - check if indexes exist first
+                                    indexes = inspector.get_indexes('weekly_log')
+                                    index_names = [idx['name'] for idx in indexes]
+                                    if 'idx_profile_date' not in index_names:
+                                        conn.execute(text("CREATE INDEX idx_profile_date ON weekly_log(profile_name, date)"))
+                                    if 'ix_weekly_log_date' not in index_names:
+                                        conn.execute(text("CREATE INDEX ix_weekly_log_date ON weekly_log(date)"))
                                 
                                 trans.commit()
                                 logger.info("Successfully added missing columns.")
