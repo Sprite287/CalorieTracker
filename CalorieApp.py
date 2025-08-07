@@ -116,13 +116,26 @@ def before_request():
         
         # Check last activity time
         if 'last_activity' in session:
-            time_since_activity = datetime.datetime.now() - session.get('last_activity', datetime.datetime.now())
+            # Use naive datetime for both to avoid timezone issues
+            last_activity = session.get('last_activity')
+            if isinstance(last_activity, str):
+                # Parse if it's a string
+                last_activity = datetime.datetime.fromisoformat(last_activity)
+            current_time = datetime.datetime.now()
+            
+            # Ensure both are naive (no timezone)
+            if last_activity.tzinfo is not None:
+                last_activity = last_activity.replace(tzinfo=None)
+            if current_time.tzinfo is not None:
+                current_time = current_time.replace(tzinfo=None)
+                
+            time_since_activity = current_time - last_activity
             if time_since_activity > datetime.timedelta(hours=2):
                 session.clear()
                 flash("Your session has expired. Please select your profile again.", "info")
                 return redirect(url_for('select_profile'))
         
-        session['last_activity'] = datetime.datetime.now()
+        session['last_activity'] = datetime.datetime.now().isoformat()
 
 # Input validation and sanitization functions
 def sanitize_input(text, max_length=200):
